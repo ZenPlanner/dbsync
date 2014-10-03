@@ -4,10 +4,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Resources;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.*;
 
 public class App {
@@ -16,9 +13,7 @@ public class App {
             "uniqueidentifier", "bigint", "date", "datetime", "datetime2", "smalldatetime", "tinyint", "smallint",
             "int", "decimal", "bit", "money", "smallmoney", "char", "float"
     });
-    private static final List<String> bigTypes = Arrays.asList(new String[]{
-            "varchar", "nvarchar", "text"
-    });
+    private static final List<String> bigTypes = Arrays.asList(new String[]{"varchar", "nvarchar", "text"});
 
     public static void main(String[] args) throws Exception {
         String filterValue = args[0];
@@ -33,19 +28,26 @@ public class App {
                 Map<String, Table> srcTables = filterTables(getTables(scon));
                 Map<String, Table> dstTables = filterTables(getTables(dcon));
                 for (Table srcTable : srcTables.values()) {
-                    if(!dstTables.containsKey(srcTable.getName())) {
+                    if (!dstTables.containsKey(srcTable.getName())) {
                         continue;
                     }
                     Table dstTable = dstTables.get(srcTable.getName());
-                    compTables(srcTable, dstTable);
+                    compTables(scon, dcon, srcTable, dstTable, filterValue);
                 }
             }
         }
     }
 
-    private static void compTables(Table srcTable, Table dstTable) {
+    private static void compTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
+                                   String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = writeHashedQuery(lcd);
+        try (PreparedStatement stmt = scon.prepareStatement(sql)) {
+            try (PreparedStatement dtmt = dcon.prepareStatement(sql)) {
+                stmt.setObject(1, filterValue);
+                dtmt.setObject(1, filterValue);
+            }
+        }
     }
 
     private static Table findLcd(Table srcTable, Table dstTable) {
@@ -53,8 +55,8 @@ public class App {
         Set<String> colNames = new HashSet<>();
         colNames.addAll(srcTable.keySet());
         colNames.addAll(dstTable.keySet());
-        for(String colName : colNames) {
-            if(!srcTable.containsKey(colName) || !dstTable.containsKey(colName)) {
+        for (String colName : colNames) {
+            if (!srcTable.containsKey(colName) || !dstTable.containsKey(colName)) {
                 continue;
             }
             table.put(colName, srcTable.get(colName));
@@ -66,7 +68,7 @@ public class App {
         List<String> colNames = new ArrayList<>();
         List<String> pk = new ArrayList<>();
         for (Column col : table.values()) {
-            if(col.isPrimaryKey()) {
+            if (col.isPrimaryKey()) {
                 pk.add("[" + col.getColumnName() + "]");
             }
             colNames.add(getColSelect(col));
