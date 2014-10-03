@@ -64,11 +64,17 @@ public class App {
 
     private static String writeHashedQuery(Table table) {
         List<String> colNames = new ArrayList<>();
+        List<String> pk = new ArrayList<>();
         for (Column col : table.values()) {
+            if(col.isPrimaryKey()) {
+                pk.add("[" + col.getColumnName() + "]");
+            }
             colNames.add(getColSelect(col));
         }
         String selectClause = Joiner.on(",\n\t").join(colNames);
-        String sql = String.format("select\n\t%s from [%s]\nwhere [%s]=?", selectClause, table.getName(), filterCol);
+        String orderClause = Joiner.on(",").join(pk);
+        String sql = String.format("select\n\t%s from [%s]\nwhere [%s]=?\norder by %s",
+                selectClause, table.getName(), filterCol, orderClause);
         return sql;
     }
 
@@ -77,7 +83,8 @@ public class App {
             return "[" + col.getColumnName() + "]";
         }
         if (bigTypes.contains(col.getDataType().toLowerCase())) {
-            return String.format("HASHBYTES('md5', [%s]) as [%s]", col.getColumnName(), col.getColumnName());
+            return String.format("HASHBYTES('md5', convert(nvarchar(max), [%s])) as [%s]",
+                    col.getColumnName(), col.getColumnName());
         }
         throw new RuntimeException("Unknown type: " + col.getDataType());
     }
