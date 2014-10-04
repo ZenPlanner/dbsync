@@ -1,7 +1,6 @@
 package com.zenplanner.sql;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
 import com.google.common.io.Resources;
 
 import java.sql.Connection;
@@ -13,6 +12,7 @@ import java.util.*;
 public class DbComparator {
 
     private static final String filterCol = "partitionId";
+    private static final int maxKeys = 2000; // jtds driver limit
 
     public enum ChangeType {
         INSERT, UPDATE, DELETE, NONE
@@ -84,7 +84,7 @@ public class DbComparator {
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = lcd.writeHashedQuery(filterCol); // TODO: non-filtered table queries
-        int i = 0;
+        //int i = 0; // TODO: Threading and progress indicator
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
             stmt.setObject(1, filterValue);
             dtmt.setObject(1, filterValue);
@@ -96,7 +96,7 @@ public class DbComparator {
                 changes.put(ChangeType.UPDATE, new ArrayList<>());
                 changes.put(ChangeType.DELETE, new ArrayList<>());
                 while (srs.getRow() > 0 || drs.getRow() > 0) {
-                    System.out.println("Syncing row " + (++i));
+                    //System.out.println("Syncing row " + (++i));
                     ChangeType change = detectChange(srs, drs);
                     Key key = getPk(lcd, srs, drs);
                     List<Key> changeset = changes.get(change);
@@ -112,33 +112,52 @@ public class DbComparator {
     }
 
     private static void insertRows(Connection scon, Connection dcon, Table table, List<Key> keys) throws Exception {
-        if(keys.size() <= 0) {
+        if (keys.size() <= 0) {
             return;
         }
-        try(Statement stmt = dcon.createStatement()) {
+
+        // Enable identity insert
+        try (Statement stmt = dcon.createStatement()) {
             stmt.executeUpdate(String.format("SET IDENTITY_INSERT [%s] ON;", table.getName()));
         } catch (Exception ex) {
             // TODO: Nicer solution for tables that don't have an identity
         }
-        try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys)) {
-            try (ResultSet rs = selectStmt.executeQuery()) {
-                String sql = table.writeInsertQuery();
-                try(PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
-                    while (rs.next()) {
-                        insertRow(insertStmt, table, rs);
+
+        // Disable constraint checking
+        try (Statement stmt = dcon.createStatement()) {
+            stmt.executeUpdate(String.format("ALTER TABLE [%s] NOCHECK CONSTRAINT all;", table.getName()));
+        }
+
+        List<Column> pk = table.getPk();
+        int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        for (int rowIndex = 0; rowIndex < keys.size(); ) {
+            int count = Math.min(keys.size() - rowIndex, rowLimit);
+            System.out.println("Inserting " + count + " rows into " + table.getName());
+            try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, rowIndex, count)) {
+                try (ResultSet rs = selectStmt.executeQuery()) {
+                    String sql = table.writeInsertQuery();
+                    try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
+                        while (rs.next()) {
+                            insertRow(insertStmt, table, rs);
+                        }
+                        try {
+                            insertStmt.executeBatch();
+                        } catch (Exception ex) {
+                            throw new RuntimeException("Error inserting rows!", ex);
+                        }
                     }
-                    insertStmt.executeBatch();
                 }
             }
+            rowIndex += count;
         }
     }
 
     /**
      * Adds the values from a given row to the PreparedStatement
      *
-     * @param stmt The PreparedStatement to help prepare
+     * @param stmt  The PreparedStatement to help prepare
      * @param table The table definition
-     * @param rs The ResultSet to pull values from
+     * @param rs    The ResultSet to pull values from
      * @throws Exception
      */
     private static void insertRow(PreparedStatement stmt, Table table, ResultSet rs) throws Exception {
@@ -226,26 +245,28 @@ public class DbComparator {
      * @throws Exception
      */
     // TODO: Break this monster out into separate methods for SQL and values
-    private static PreparedStatement createSelectQuery(Connection con, Table table, List<Key> keys) throws Exception {
+    private static PreparedStatement createSelectQuery(Connection con, Table table, List<Key> keys,
+                                                       int startIdx, int count) throws Exception {
         List<Object> parms = new ArrayList<>();
         List<Column> pk = table.getPk();
         StringBuilder sb = new StringBuilder();
-        for (Key key : keys) {
+        for (int rowIdx = startIdx; rowIdx < startIdx + count; rowIdx++) {
+            Key key = keys.get(rowIdx);
             if (sb.length() > 0) {
                 sb.append("\tor ");
             }
             sb.append("(");
-            for (int i = 0; i < pk.size(); i++) {
-                if (i > 0) {
+            for (int pkIdx = 0; pkIdx < pk.size(); pkIdx++) {
+                if (pkIdx > 0) {
                     sb.append(" and ");
                 }
-                Column col = pk.get(i);
+                Column col = pk.get(pkIdx);
                 sb.append("[");
                 sb.append(col.getColumnName());
                 sb.append("]=?");
 
                 // Grab the value of the parameter
-                Object val = key.get(i);
+                Object val = key.get(pkIdx);
                 parms.add(val);
             }
             sb.append(")\n");

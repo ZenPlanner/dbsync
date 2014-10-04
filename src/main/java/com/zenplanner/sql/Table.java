@@ -51,7 +51,7 @@ public class Table extends TreeMap<String, Column> {
         List<String> valueNames = new ArrayList<>();
         for(Column col : values()) {
             String colName = col.getColumnName();
-            colNames.add(colName);
+            colNames.add("[" + colName + "]");
             valueNames.add("?");
         }
         String nameClause = Joiner.on(", ").join(colNames);
