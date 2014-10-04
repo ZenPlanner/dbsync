@@ -38,6 +38,16 @@ public class App {
         }
     }
 
+    /**
+     * Compares two tables and syncronizes the results
+     *
+     * @param scon The source connection
+     * @param dcon The destination connection
+     * @param srcTable The source table
+     * @param dstTable The destination table
+     * @param filterValue A partitionId
+     * @throws Exception
+     */
     private static void compTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
@@ -48,13 +58,68 @@ public class App {
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();
-                while(!srs.isAfterLast() || !drs.isAfterLast()) {
-
+                while(srs.getRow() > 0 && drs.getRow() > 0) {
+                    advance(srcTable, dstTable, srs, drs);
                 }
             }
         }
     }
 
+    /**
+     * Takes two RecordSets, and advances one cursor, or the other, or both to keep the PKs in sync
+     *
+     * @param srcTable The source table
+     * @param dstTable The destination table
+     * @param srs The source RecordSet
+     * @param drs The destination RecordSet
+     * @throws Exception
+     */
+    private static void advance(Table srcTable, Table dstTable, ResultSet srs, ResultSet drs) throws Exception {
+        Key spk = getPk(srcTable, srs);
+        Key dpk = getPk(dstTable, drs);
+        int val = Key.compare(spk, dpk);
+        if(val < 0) {
+            srs.next();
+            return;
+        }
+        if(val > 0) {
+            drs.next();
+            return;
+        }
+        srs.next();
+        drs.next();
+    }
+
+    /**
+     * Pulls an array of objects that represents the PK from a row
+     *
+     * @param tab The table definition
+     * @param rs A ResultSet to check
+     * @return A List representing the PK
+     * @throws Exception
+     */
+    private static Key getPk(Table tab, ResultSet rs) throws Exception {
+        Key key = new Key();
+        if(rs.isClosed() || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
+            key.add(Double.POSITIVE_INFINITY);
+            return key;
+        }
+        for(Column col : tab.values()) {
+            if(col.isPrimaryKey()) {
+                Comparable<?> val = (Comparable<?>)rs.getObject(col.getColumnName());
+                key.add(val);
+            }
+        }
+        return key;
+    }
+
+    /**
+     * Creates a virtual table that contains the intersection of the columns of two other real tables
+     *
+     * @param srcTable The source table
+     * @param dstTable The destination table
+     * @return a virtual table that contains the intersection of the columns of two other real tables
+     */
     private static Table findLcd(Table srcTable, Table dstTable) {
         Table table = new Table(srcTable.getName());
         Set<String> colNames = new HashSet<>();
@@ -69,6 +134,12 @@ public class App {
         return table;
     }
 
+    /**
+     * Writes a magical query that returns the primary key and a hash of the row
+     *
+     * @param table The table to query
+     * @return A magical query that returns the primary key and a hash of the row
+     */
     private static String writeHashedQuery(Table table) {
         List<String> colNames = new ArrayList<>();
         List<String> pk = new ArrayList<>();
@@ -79,8 +150,8 @@ public class App {
             colNames.add(getColSelect(col));
         }
         String selectClause = Joiner.on("+\n\t\t").join(colNames);
-        selectClause = "HASHBYTES('md5',\n\t\t" + selectClause + "\n\t) as [Hash]";
         String orderClause = Joiner.on(",").join(pk);
+        selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + selectClause + "\n\t) as [Hash]";
         String sql = String.format("select\n\t%s\nfrom [%s]\nwhere [%s]=?\norder by %s",
                 selectClause, table.getName(), filterCol, orderClause);
         return sql;
