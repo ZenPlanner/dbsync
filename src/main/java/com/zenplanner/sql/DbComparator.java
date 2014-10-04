@@ -384,15 +384,9 @@ public class DbComparator {
     private static Map<String, Table> filterTables(Map<String, Table> in) {
         Map<String, Table> out = new HashMap<>();
         for (Map.Entry<String, Table> entry : in.entrySet()) {
-            boolean hasPk = false;
             String name = entry.getKey();
             Table table = entry.getValue();
-            for (Column col : table.values()) {
-                if (col.isPrimaryKey()) {
-                    hasPk = true;
-                }
-            }
-            if (hasPk) {
+            if (table.getPk().size() > 0) {
                 out.put(name, table);
             }
         }
