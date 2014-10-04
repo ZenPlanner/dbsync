@@ -80,6 +80,9 @@ public class App {
             throw new RuntimeException("Both rows are null!");
         }
         if(shash != null && dhash != null) {
+            if(shash.equals(dhash)) {
+                return; // Already up-to-date
+            }
             update();
         }
         if(shash == null) {
