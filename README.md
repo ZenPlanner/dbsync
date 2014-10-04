@@ -15,12 +15,12 @@ Done
 * Get the actual row data for changed rows
 * Bulk insert updated records
 * Re-enable constraints when finished
+* Sync everything from non-partitionId-having tables
 
 TODO
 ----
 * Update
 * Delete
-* Sync everything from non-partitionId-having tables
 * Swing UI
 * Store settings in config file
 * Performance testing
