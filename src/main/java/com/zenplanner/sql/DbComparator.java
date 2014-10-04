@@ -291,18 +291,14 @@ public class DbComparator {
         Map<String, Table> out = new HashMap<>();
         for (Map.Entry<String, Table> entry : in.entrySet()) {
             boolean hasPk = false;
-            boolean hasCol = false;
             String name = entry.getKey();
             Table table = entry.getValue();
             for (Column col : table.values()) {
                 if (col.isPrimaryKey()) {
                     hasPk = true;
                 }
-                if (filterCol.equalsIgnoreCase(col.getColumnName())) {
-                    hasCol = true;
-                }
             }
-            if (hasPk && hasCol) {
+            if (hasPk) {
                 out.put(name, table);
             }
         }
