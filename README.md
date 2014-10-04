@@ -16,11 +16,11 @@ Done
 * Bulk insert updated records
 * Re-enable constraints when finished
 * Sync everything from non-partitionId-having tables
+* Delete
 
 TODO
 ----
 * Update
-* Delete
 * Swing UI
 * Store settings in config file
 * Performance testing

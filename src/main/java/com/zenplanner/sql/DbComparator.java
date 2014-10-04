@@ -135,9 +135,23 @@ public class DbComparator {
                     advance(srcTable, dstTable, srs, drs);
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
+                deleteRows(dcon, lcd, changes.get(ChangeType.DELETE));
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows!", ex);
             }
+        }
+    }
+
+    private static void deleteRows(Connection dcon, Table table, Set<Key> keys) throws Exception {
+        List<Column> pk = table.getPk();
+        int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        for (int rowIndex = 0; rowIndex < keys.size(); ) {
+            int count = Math.min(keys.size() - rowIndex, rowLimit);
+            System.out.println("Deleting " + count + " rows from " + table.getName());
+            try (PreparedStatement selectStmt = createDeleteQuery(dcon, table, keys, count)) {
+                selectStmt.execute();
+            }
+            rowIndex += count;
         }
     }
 
@@ -263,18 +277,16 @@ public class DbComparator {
         return table;
     }
 
-    /**
-     * Creates a PreparedStatement that returns all of the rows for the given set of keys.
-     * Don't forget to close the statement!
-     *
-     * @param con   The connection to use to query the DB for its schema
-     * @param table The table definition
-     * @param keys  The keys of the rows for which to query
-     * @return A PreparedStatement that returns all the rows for the given set of keys.
-     * @throws Exception
-     */
-    // TODO: Break this monster out into separate methods for SQL and values
     private static PreparedStatement createSelectQuery(Connection con, Table table, Set<Key> keys, int count) {
+        return createQuery("select *", con, table, keys, count);
+    }
+
+    private static PreparedStatement createDeleteQuery(Connection con, Table table, Set<Key> keys, int count) {
+        return createQuery("delete", con, table, keys, count);
+    }
+
+    // TODO: Break this monster out into separate methods for SQL and values
+    private static PreparedStatement createQuery(String prefix, Connection con, Table table, Set<Key> keys, int count) {
         List<Object> parms = new ArrayList<>();
         List<Column> pk = table.getPk();
         StringBuilder sb = new StringBuilder();
@@ -303,7 +315,7 @@ public class DbComparator {
                 break;
             }
         }
-        String sql = String.format("select\n\t*\nfrom [%s]\nwhere %s", table.getName(), sb.toString());
+        String sql = String.format("%s\nfrom [%s]\nwhere %s", prefix, table.getName(), sb.toString());
         try {
             PreparedStatement stmt = con.prepareStatement(sql);
             for (int i = 0; i < parms.size(); i++) {
