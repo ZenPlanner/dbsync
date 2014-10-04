@@ -128,10 +128,9 @@ public class DbComparator {
                     ChangeType change = detectChange(lcd, srs, drs);
                     Key key = getPk(lcd, srs, drs);
                     Set<Key> changeset = changes.get(change);
-                    if (changeset == null) {
-                        continue;
+                    if (changeset != null) {
+                        changeset.add(key);
                     }
-                    changeset.add(key);
                     advance(srcTable, dstTable, srs, drs);
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
@@ -448,7 +447,7 @@ null		E			Left > right, delete E from right
         if (dhash == null) {
             return ChangeType.INSERT;
         }
-        if (shash.equals(dhash)) {
+        if (Arrays.equals(shash, dhash)) {
             return ChangeType.NONE;
         }
         return ChangeType.UPDATE;

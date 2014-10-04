@@ -29,6 +29,4 @@ TODO
 
 Bugs
 ----
-* Updates always happening even on when there are no changes
-* Log table always gets 1999 rows inserted
-* PartitionId filtering appears to be ignored 
+No known bugs at this time :)
