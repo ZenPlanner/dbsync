@@ -103,7 +103,7 @@ public class DbComparator {
                 stmt.setObject(1, filterValue);
                 dtmt.setObject(1, filterValue);
             }
-            List<String> pairs = new ArrayList<>();  // Debugging
+            StringBuilder sb = new StringBuilder();
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();
@@ -120,11 +120,13 @@ public class DbComparator {
                     // Debugging
                     Key srcPk = lcd.getPk(srs); // Debugging
                     Key dstPk = lcd.getPk(drs); // Debugging
-                    pairs.add("" + srcPk + "-" + dstPk + " " + change); // Debugging
+                    sb.append("" + srcPk + "-" + dstPk + " " + change + "\n"); // Debugging
                     if(Key.compare(lastSrcPk, srcPk) > 0) { // Debugging
+                        int eq = Key.compare(lastSrcPk, srcPk); // Debugging
                         throw new RuntimeException("Invalid sort order on source query!"); // Debugging
                     }
                     if(Key.compare(lastDstPk, dstPk) > 0) { // Debugging
+                        int eq = Key.compare(lastDstPk, dstPk); // Debugging
                         throw new RuntimeException("Invalid sort order on dest query!"); // Debugging
                     }
 
