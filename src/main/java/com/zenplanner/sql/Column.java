@@ -1,4 +1,4 @@
-package com.zenplanner;
+package com.zenplanner.sql;
 
 public class Column {
     private String columnName;

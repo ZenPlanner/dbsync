@@ -1,16 +1,16 @@
-package com.zenplanner;
+package com.zenplanner.sql;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Resources;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.*;
 
-public class App {
-    private static final Logger log = LoggerFactory.getLogger(App.class);
+public class DbComparator {
 
     private static final String filterCol = "partitionId";
     private static final List<String> smallTypes = Arrays.asList(new String[]{
@@ -18,29 +18,60 @@ public class App {
             "int", "decimal", "bit", "money", "smallmoney", "char", "float"
     });
     private static final List<String> bigTypes = Arrays.asList(new String[]{"varchar", "nvarchar", "text"});
+    public enum ChangeType {
+        INSERT, UPDATE, DELETE, NONE
+    }
 
-    public static void main(String[] args) throws Exception {
-        String filterValue = args[0];
-        String srcCon = args[1];
-        String dstCon = args[2];
+    public DbComparator() {
 
-        Class.forName("net.sourceforge.jtds.jdbc.Driver");
+    }
 
-        // Get tables and columns
-        try (Connection scon = DriverManager.getConnection(srcCon)) {
-            try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                Map<String, Table> srcTables = filterTables(getTables(scon));
-                Map<String, Table> dstTables = filterTables(getTables(dcon));
-                for (Table srcTable : srcTables.values()) {
-                    if (!dstTables.containsKey(srcTable.getName())) {
-                        continue;
+    public static void Compare(Connection scon, Connection dcon, String filterValue) {
+        try {
+            Map<String, Table> srcTables = filterTables(getTables(scon));
+            Map<String, Table> dstTables = filterTables(getTables(dcon));
+            for (Table srcTable : srcTables.values()) {
+                if (!dstTables.containsKey(srcTable.getName())) {
+                    continue;
+                }
+                Table dstTable = dstTables.get(srcTable.getName());
+                System.out.println("Comparing table: " + srcTable.getName());
+                syncTables(scon, dcon, srcTable, dstTable, filterValue);
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException("Error comparing databases!", ex);
+        }
+    }
+
+    /**
+     * Retrieves a map of Tables from the database schema
+     *
+     * @param con The connection to use to query the DB for its schema
+     * @return A map of Tables from the database schema
+     * @throws Exception
+     */
+    private static Map<String, Table> getTables(Connection con) throws Exception {
+        Map<String, Table> tables = new HashMap<>();
+        try (Statement stmt = con.createStatement()) {
+            String sql = Resources.toString(Resources.getResource("GetTables.sql"), Charsets.UTF_8);
+            try (ResultSet rs = stmt.executeQuery(sql)) {
+                while (rs.next()) {
+                    String tableName = rs.getString("table_name");
+                    if (!tables.containsKey(tableName)) {
+                        tables.put(tableName, new Table(tableName));
                     }
-                    Table dstTable = dstTables.get(srcTable.getName());
-                    System.out.println("Comparing table: " + srcTable.getName());
-                    compTables(scon, dcon, srcTable, dstTable, filterValue);
+                    Table table = tables.get(tableName);
+
+                    Column col = new Column();
+                    String colName = rs.getString("column_name");
+                    col.setColumnName(colName);
+                    col.setDataType(rs.getString("data_type"));
+                    col.setPrimaryKey(rs.getBoolean("primary_key"));
+                    table.put(colName, col);
                 }
             }
         }
+        return tables;
     }
 
     /**
@@ -53,7 +84,7 @@ public class App {
      * @param filterValue A partitionId
      * @throws Exception
      */
-    private static void compTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
+    private static void syncTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = writeHashedQuery(lcd);
@@ -64,46 +95,28 @@ public class App {
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();
+                Map<ChangeType, List<Key>> changes = new HashMap<>();
+                changes.put(ChangeType.INSERT, new ArrayList<>());
+                changes.put(ChangeType.UPDATE, new ArrayList<>());
+                changes.put(ChangeType.DELETE, new ArrayList<>());
                 while(srs.getRow() > 0 || drs.getRow() > 0) {
                     System.out.println("Syncing row " + (++i));
-                    syncRow(srs, drs);
+                    ChangeType change = detectChange(srs, drs);
+                    Key key = getPk(lcd, srs, drs);
+                    List<Key> changeset = changes.get(change);
+                    if(changeset == null) {
+                        continue;
+                    }
+                    changeset.add(key);
                     advance(srcTable, dstTable, srs, drs);
                 }
+                insertRows(lcd, changes.get(ChangeType.INSERT));
             }
         }
     }
 
-    private static void syncRow(ResultSet srs, ResultSet drs) throws Exception {
-        byte[] shash = getHash(srs);
-        byte[] dhash = getHash(drs);
-        if(shash == null && dhash == null) {
-            throw new RuntimeException("Both rows are null!");
-        }
-        if(shash != null && dhash != null) {
-            if(shash.equals(dhash)) {
-                return; // Already up-to-date
-            }
-            update();
-        }
-        if(shash == null) {
-            delete();
-        }
-        if(dhash == null) {
-            insert();
-        }
-    }
+    private static void insertRows(Table table, List<Key> changes) {
 
-
-    private static void update() {
-        System.out.println("Update");
-    }
-
-    private static void delete() {
-        System.out.println("delete");
-    }
-
-    private static void insert() {
-        System.out.println("insert");
     }
 
     /**
@@ -129,6 +142,23 @@ public class App {
         }
         srs.next();
         drs.next();
+    }
+
+    /**
+     * Gets the primary key from whichever row exists
+     *
+     * @param table The table definition
+     * @param srs The source RecordSet
+     * @param drs The destination RecordSet
+     * @return The primary key of the row
+     * @throws Exception
+     */
+    private static Key getPk(Table table, ResultSet srs, ResultSet drs) throws Exception {
+        ChangeType change = detectChange(srs, drs);
+        if(change == ChangeType.DELETE) {
+            return getPk(table, drs);
+        }
+        return getPk(table, srs);
     }
 
     /**
@@ -246,35 +276,22 @@ public class App {
         return out;
     }
 
-    /**
-     * Retrieves a map of Tables from the database schema
-     *
-     * @param con The connection to use to query the DB for its schema
-     * @return A map of Tables from the database schema
-     * @throws Exception
-     */
-    private static Map<String, Table> getTables(Connection con) throws Exception {
-        Map<String, Table> tables = new HashMap<>();
-        try (Statement stmt = con.createStatement()) {
-            String sql = Resources.toString(Resources.getResource("GetTables.sql"), Charsets.UTF_8);
-            try (ResultSet rs = stmt.executeQuery(sql)) {
-                while (rs.next()) {
-                    String tableName = rs.getString("table_name");
-                    if (!tables.containsKey(tableName)) {
-                        tables.put(tableName, new Table(tableName));
-                    }
-                    Table table = tables.get(tableName);
-
-                    Column col = new Column();
-                    String colName = rs.getString("column_name");
-                    col.setColumnName(colName);
-                    col.setDataType(rs.getString("data_type"));
-                    col.setPrimaryKey(rs.getBoolean("primary_key"));
-                    table.put(colName, col);
-                }
-            }
+    public static ChangeType detectChange(ResultSet srs, ResultSet drs) throws Exception {
+        byte[] shash = getHash(srs);
+        byte[] dhash = getHash(drs);
+        if(shash == null && dhash == null) {
+            throw new RuntimeException("Both rows are null!");
         }
-        return tables;
+        if(shash == null) {
+            return ChangeType.DELETE;
+        }
+        if(dhash == null) {
+            return ChangeType.INSERT;
+        }
+        if(shash.equals(dhash)) {
+            return ChangeType.NONE;
+        }
+        return ChangeType.UPDATE;
     }
 
     /**
@@ -289,4 +306,5 @@ public class App {
         }
         return rs.getBytes("Hash");
     }
+
 }
