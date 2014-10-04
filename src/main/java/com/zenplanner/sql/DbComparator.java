@@ -145,6 +145,8 @@ public class DbComparator {
                     lastDstPk = dstPk; // Debugging
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
+            } catch (Exception ex) {
+                throw new RuntimeException("Error selecting hashed rows!", ex);
             }
         }
     }
