@@ -23,4 +23,5 @@ TODO
 * Sync everything from non-partitionId-having tables
 * Swing UI
 * Store settings in config file
+* Performance testing
 * Refactor and test
