@@ -6,7 +6,7 @@ import java.util.List;
 public class Column {
     private static final List<String> smallTypes = Arrays.asList(new String[]{
             "uniqueidentifier", "bigint", "date", "datetime", "datetime2", "smalldatetime", "tinyint", "smallint",
-            "int", "decimal", "bit", "money", "smallmoney", "char", "float", "image"
+            "int", "decimal", "bit", "money", "smallmoney", "char", "float", "image", "nchar"
     });
     private static final List<String> bigTypes = Arrays.asList(new String[]{"varchar", "nvarchar", "text"});
 
