@@ -14,10 +14,10 @@ Done
 * Detect row state as inserted, updated, deleted, or unchanged
 * Get the actual row data for changed rows
 * Bulk insert updated records
+* Re-enable constraints when finished
 
 TODO
 ----
-* Re-enable constraints when finished
 * Update
 * Delete
 * Sync everything from non-partitionId-having tables

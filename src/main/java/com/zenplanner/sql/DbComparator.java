@@ -25,17 +25,30 @@ public class DbComparator {
     public static void Syncronize(Connection scon, Connection dcon, String filterValue) {
         try {
             Map<String, Table> srcTables = filterTables(getTables(scon));
-            Map<String, Table> dstTables = filterTables(getTables(dcon));
-            for (Table srcTable : srcTables.values()) {
-                if (!dstTables.containsKey(srcTable.getName())) {
-                    continue;
+            Map<String, Table> dstTables = getTables(dcon);
+            try {
+                setConstraints(dcon, dstTables.values(), false);
+                for (Table srcTable : srcTables.values()) {
+                    if (!dstTables.containsKey(srcTable.getName())) {
+                        continue;
+                    }
+                    Table dstTable = dstTables.get(srcTable.getName());
+                    System.out.println("Comparing table: " + srcTable.getName());
+                    syncTables(scon, dcon, srcTable, dstTable, filterValue);
                 }
-                Table dstTable = dstTables.get(srcTable.getName());
-                System.out.println("Comparing table: " + srcTable.getName());
-                syncTables(scon, dcon, srcTable, dstTable, filterValue);
+            } catch (Exception ex) {
+                throw ex;
+            } finally {
+                setConstraints(dcon, dstTables.values(), true);
             }
         } catch (Exception ex) {
             throw new RuntimeException("Error comparing databases!", ex);
+        }
+    }
+
+    private static void setConstraints(Connection con, Collection<Table> tables, boolean enabled) {
+        for(Table table : tables) {
+            table.setConstraints(con, false);
         }
     }
 
@@ -116,18 +129,7 @@ public class DbComparator {
             return;
         }
 
-        // Enable identity insert
-        try (Statement stmt = dcon.createStatement()) {
-            stmt.executeUpdate(String.format("SET IDENTITY_INSERT [%s] ON;", table.getName()));
-        } catch (Exception ex) {
-            // TODO: Nicer solution for tables that don't have an identity
-        }
-
-        // Disable constraint checking
-        try (Statement stmt = dcon.createStatement()) {
-            stmt.executeUpdate(String.format("ALTER TABLE [%s] NOCHECK CONSTRAINT all;", table.getName()));
-        }
-
+        table.setIdentityInsert(dcon, true);
         List<Column> pk = table.getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {

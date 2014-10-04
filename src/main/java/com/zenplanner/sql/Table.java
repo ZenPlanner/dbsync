@@ -2,7 +2,9 @@ package com.zenplanner.sql;
 
 import com.google.common.base.Joiner;
 
+import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
@@ -102,6 +104,29 @@ public class Table extends TreeMap<String, Column> {
             }
         }
         return key;
+    }
+
+    /**
+     * Enables or disables constraints for this table
+     * @param con The connection to use
+     * @param enabled
+     */
+    public void setConstraints(Connection con, boolean enabled) {
+        try (Statement stmt = con.createStatement()) {
+            String state = enabled ? "CHECK" : "NOCHECK";
+            stmt.executeUpdate(String.format("ALTER TABLE [%s] %s CONSTRAINT all;", getName(), state));
+        } catch (Exception ex) {
+            throw new RuntimeException("Error setting constraints enabled: " + enabled, ex);
+        }
+    }
+
+    public void setIdentityInsert(Connection con, boolean enabled) {
+        try (Statement stmt = con.createStatement()) {
+            String state = enabled ? "ON" : "OFF";
+            stmt.executeUpdate(String.format("SET IDENTITY_INSERT [%s] %s;", getName(), state));
+        } catch (Exception ex) {
+            // TODO: Nicer solution for tables that don't have an identity
+        }
     }
 
 }
