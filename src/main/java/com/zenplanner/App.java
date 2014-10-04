@@ -42,10 +42,15 @@ public class App {
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = writeHashedQuery(lcd);
-        try (PreparedStatement stmt = scon.prepareStatement(sql)) {
-            try (PreparedStatement dtmt = dcon.prepareStatement(sql)) {
-                stmt.setObject(1, filterValue);
-                dtmt.setObject(1, filterValue);
+        try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
+            stmt.setObject(1, filterValue);
+            dtmt.setObject(1, filterValue);
+            try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
+                srs.next();
+                drs.next();
+                while(!srs.isAfterLast() || !drs.isAfterLast()) {
+
+                }
             }
         }
     }
@@ -73,25 +78,36 @@ public class App {
             }
             colNames.add(getColSelect(col));
         }
-        String selectClause = Joiner.on(",\n\t").join(colNames);
+        String selectClause = Joiner.on("+\n\t\t").join(colNames);
+        selectClause = "HASHBYTES('md5',\n\t\t" + selectClause + "\n\t) as [Hash]";
         String orderClause = Joiner.on(",").join(pk);
-        String sql = String.format("select\n\t%s from [%s]\nwhere [%s]=?\norder by %s",
+        String sql = String.format("select\n\t%s\nfrom [%s]\nwhere [%s]=?\norder by %s",
                 selectClause, table.getName(), filterCol, orderClause);
         return sql;
     }
 
+    /**
+     * Returns the SQL to add to a select clause for the given column
+     *
+     * @param col The Column object
+     * @return the SQL to add to a select clause for the given column
+     */
     private static String getColSelect(Column col) {
         if (smallTypes.contains(col.getDataType().toLowerCase())) {
-            return "[" + col.getColumnName() + "]";
+            return String.format("HASHBYTES('md5', convert(varbinary, [%s]))", col.getColumnName());
         }
         if (bigTypes.contains(col.getDataType().toLowerCase())) {
-            return String.format("HASHBYTES('md5', convert(nvarchar(max), [%s])) as [%s]",
-                    col.getColumnName(), col.getColumnName());
+            return String.format("HASHBYTES('md5', convert(nvarchar(max), [%s]))", col.getColumnName());
         }
         throw new RuntimeException("Unknown type: " + col.getDataType());
     }
 
-    // Removes tables that don't have a primary key, or aren't related to partitionId
+    /**
+     * Filters a map of database tables and returns only the ones that are sync-able
+     *
+     * @param in The map to filter
+     * @return The filtered map
+     */
     private static Map<String, Table> filterTables(Map<String, Table> in) {
         Map<String, Table> out = new HashMap<>();
         for (Map.Entry<String, Table> entry : in.entrySet()) {
@@ -114,8 +130,14 @@ public class App {
         return out;
     }
 
+    /**
+     * Retrieves a map of Tables from the database schema
+     *
+     * @param con The connection to use to query the DB for its schema
+     * @return A map of Tables from the database schema
+     * @throws Exception
+     */
     private static Map<String, Table> getTables(Connection con) throws Exception {
-        // Collect the tables
         Map<String, Table> tables = new HashMap<>();
         try (Statement stmt = con.createStatement()) {
             String sql = Resources.toString(Resources.getResource("GetTables.sql"), Charsets.UTF_8);
