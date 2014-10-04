@@ -62,7 +62,7 @@ public class DbComparator {
      */
     private static void setConstraints(Connection con, Collection<Table> tables, boolean enabled) {
         for (Table table : tables) {
-            table.setConstraints(con, false);
+            table.setConstraints(con, enabled);
         }
     }
 
