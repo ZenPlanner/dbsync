@@ -11,6 +11,7 @@ import java.util.TreeMap;
 
 public class Table extends TreeMap<String, Column> {
     private final String name;
+    private List<Column> pk;
 
     public Table(String name) {
         this.name = name;
@@ -35,13 +36,19 @@ public class Table extends TreeMap<String, Column> {
      * @return A list of the columns that constitute the primary key
      */
     public List<Column> getPk() {
-        List<Column> pk = new ArrayList<>();
-        for(Column col : values()) {
-            if(col.isPrimaryKey()) {
-                pk.add(col);
-            }
+        if(pk != null) {
+            return pk;
         }
-        return pk;
+        synchronized (this) {
+            List<Column> pk = new ArrayList<>();
+            for(Column col : values()) {
+                if(col.isPrimaryKey()) {
+                    pk.add(col);
+                }
+            }
+            this.pk = pk;
+            return pk;
+        }
     }
 
     public boolean hasColumn(String name) {
@@ -62,6 +69,27 @@ public class Table extends TreeMap<String, Column> {
         String nameClause = Joiner.on(", ").join(colNames);
         String valueClause = Joiner.on(", ").join(valueNames);
         String sql = String.format("insert into [%s] (%s\n) values (%s)", getName(), nameClause, valueClause);
+        return sql;
+    }
+
+    public String writeUpdateQuery() {
+        List<String> updateCols = new ArrayList<>();
+        List<Column> pk = getPk();
+        for(Column col : values()) {
+            if(pk.contains(col)) {
+                continue; // TODO: Cache non-update columns for speed
+            }
+            String colName = col.getColumnName();
+            updateCols.add(String.format("\t[%s]=?", colName));
+        }
+        List<String> whereCols = new ArrayList<>();
+        for(Column col : pk) {
+            String colName = col.getColumnName();
+            whereCols.add(String.format("[%s]=?", colName));
+        }
+        String updateClause = Joiner.on(",\n").join(updateCols);
+        String whereClause = Joiner.on("\n\tand ").join(whereCols);
+        String sql = String.format("update [%s] set\n%s\nwhere %s", getName(), updateClause, whereClause);
         return sql;
     }
 

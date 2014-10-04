@@ -17,10 +17,10 @@ Done
 * Re-enable constraints when finished
 * Sync everything from non-partitionId-having tables
 * Delete
+* Update
 
 TODO
 ----
-* Update
 * Swing UI
 * Store settings in config file
 * Performance testing
@@ -29,5 +29,6 @@ TODO
 
 Bugs
 ----
+* Updates always happening even on when there are no changes
 * Log table always gets 1999 rows inserted
 * PartitionId filtering appears to be ignored 

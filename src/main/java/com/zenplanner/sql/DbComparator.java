@@ -135,6 +135,7 @@ public class DbComparator {
                     advance(srcTable, dstTable, srs, drs);
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
+                updateRows(scon, dcon, lcd, changes.get(ChangeType.UPDATE));
                 deleteRows(dcon, lcd, changes.get(ChangeType.DELETE));
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows!", ex);
@@ -195,6 +196,34 @@ public class DbComparator {
         }
     }
 
+    private static void updateRows(Connection scon, Connection dcon, Table table, Set<Key> keys) throws Exception {
+        if (keys.size() <= 0) {
+            return;
+        }
+        List<Column> pk = table.getPk();
+        int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        for (int rowIndex = 0; rowIndex < keys.size(); ) {
+            int count = Math.min(keys.size() - rowIndex, rowLimit);
+            System.out.println("Updating " + count + " rows in " + table.getName());
+            try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, count)) {
+                try (ResultSet rs = selectStmt.executeQuery()) {
+                    String sql = table.writeUpdateQuery();
+                    try (PreparedStatement updateStmt = dcon.prepareStatement(sql)) {
+                        while (rs.next()) {
+                            updateRow(updateStmt, table, rs);
+                        }
+                        try {
+                            updateStmt.executeBatch();
+                        } catch (Exception ex) {
+                            throw new RuntimeException("Error updating rows!", ex);
+                        }
+                    }
+                }
+            }
+            rowIndex += count;
+        }
+    }
+
     /**
      * Adds the values from a given row to the PreparedStatement
      *
@@ -207,6 +236,26 @@ public class DbComparator {
         stmt.clearParameters();
         int i = 0;
         for (Column col : table.values()) {
+            String colName = col.getColumnName();
+            Object val = rs.getObject(colName);
+            stmt.setObject(++i, val);
+        }
+        stmt.addBatch();
+    }
+
+    private static void updateRow(PreparedStatement stmt, Table table, ResultSet rs) throws Exception {
+        stmt.clearParameters();
+        int i = 0;
+        List<Column> pk = table.getPk();
+        for (Column col : table.values()) {
+            if(pk.contains(col)) {
+                continue; // TODO: Cache non-update columns for speed
+            }
+            String colName = col.getColumnName();
+            Object val = rs.getObject(colName);
+            stmt.setObject(++i, val);
+        }
+        for(Column col : pk) {
             String colName = col.getColumnName();
             Object val = rs.getObject(colName);
             stmt.setObject(++i, val);
