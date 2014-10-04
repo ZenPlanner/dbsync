@@ -103,7 +103,6 @@ public class DbComparator {
                 stmt.setObject(1, filterValue);
                 dtmt.setObject(1, filterValue);
             }
-            StringBuilder sb = new StringBuilder();
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();
@@ -111,25 +110,8 @@ public class DbComparator {
                 changes.put(ChangeType.INSERT, new HashSet<>());
                 changes.put(ChangeType.UPDATE, new HashSet<>());
                 changes.put(ChangeType.DELETE, new HashSet<>());
-                Key lastSrcPk = new Key();
-                Key lastDstPk = new Key();
                 while (srs.getRow() > 0 || drs.getRow() > 0) {
-                    //System.out.println("Syncing row " + (++i));
-
-                    // Debugging
-                    Key srcPk = lcd.getPk(srs); // Debugging
-                    Key dstPk = lcd.getPk(drs); // Debugging
                     ChangeType change = detectChange(lcd, srs, drs);
-                    sb.append("" + srcPk + "-" + dstPk + " " + change + "\n"); // Debugging
-                    if (Key.compare(lastSrcPk, srcPk) > 0) { // Debugging
-                        int eq = Key.compare(lastSrcPk, srcPk); // Debugging
-                        throw new RuntimeException("Invalid sort order on source query!"); // Debugging
-                    }
-                    if (Key.compare(lastDstPk, dstPk) > 0) { // Debugging
-                        int eq = Key.compare(lastDstPk, dstPk); // Debugging
-                        throw new RuntimeException("Invalid sort order on dest query!"); // Debugging
-                    }
-
                     Key key = getPk(lcd, srs, drs);
                     Set<Key> changeset = changes.get(change);
                     if (changeset == null) {
@@ -137,27 +119,12 @@ public class DbComparator {
                     }
                     changeset.add(key);
                     advance(srcTable, dstTable, srs, drs);
-
-                    // Debugging
-                    //insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT)); // Debugging
-                    //changes.get(ChangeType.INSERT).clear(); // Debugging
-                    lastSrcPk = srcPk; // Debugging
-                    lastDstPk = dstPk; // Debugging
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows!", ex);
             }
         }
-    }
-
-    private static String keyListToString(List<Key> keys) {
-        StringBuilder sb = new StringBuilder();
-        for (Key key : keys) {
-            sb.append(key.toString());
-            sb.append("\n");
-        }
-        return sb.toString();
     }
 
     private static void insertRows(Connection scon, Connection dcon, Table table, Set<Key> keys) throws Exception {
@@ -170,7 +137,6 @@ public class DbComparator {
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
-            //count = 1; // Debugging
             System.out.println("Inserting " + count + " rows into " + table.getName());
             try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
