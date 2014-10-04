@@ -111,14 +111,22 @@ public class DbComparator {
                 changes.put(ChangeType.INSERT, new HashSet<>());
                 changes.put(ChangeType.UPDATE, new HashSet<>());
                 changes.put(ChangeType.DELETE, new HashSet<>());
+                Key lastSrcPk = new Key();
+                Key lastDstPk = new Key();
                 while (srs.getRow() > 0 || drs.getRow() > 0) {
                     //System.out.println("Syncing row " + (++i));
                     ChangeType change = detectChange(lcd, srs, drs);
 
                     // Debugging
-                    Key spk = lcd.getPk(srs); // Debugging
-                    Key dpk = lcd.getPk(drs); // Debugging
-                    pairs.add("" + spk + "-" + dpk + " " + change); // Debugging
+                    Key srcPk = lcd.getPk(srs); // Debugging
+                    Key dstPk = lcd.getPk(drs); // Debugging
+                    pairs.add("" + srcPk + "-" + dstPk + " " + change); // Debugging
+                    if(Key.compare(lastSrcPk, srcPk) > 0) { // Debugging
+                        throw new RuntimeException("Invalid sort order on source query!"); // Debugging
+                    }
+                    if(Key.compare(lastDstPk, dstPk) > 0) { // Debugging
+                        throw new RuntimeException("Invalid sort order on dest query!"); // Debugging
+                    }
 
                     Key key = getPk(lcd, srs, drs);
                     Set<Key> changeset = changes.get(change);
@@ -131,6 +139,8 @@ public class DbComparator {
                     // Debugging
                     //insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT)); // Debugging
                     //changes.get(ChangeType.INSERT).clear(); // Debugging
+                    lastSrcPk = srcPk; // Debugging
+                    lastDstPk = dstPk; // Debugging
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
             }
