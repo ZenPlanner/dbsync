@@ -29,6 +29,9 @@ public class Key extends ArrayList<Comparable> implements Comparable {
 
     @Override
     public int compareTo(Object o) {
+        if(o == null) {
+            return 1; // null means we've went past the end of the ResultSet, and should be treated as INFINITY
+        }
         if(o instanceof Key == false) {
             return -1;
         }
@@ -41,10 +44,10 @@ public class Key extends ArrayList<Comparable> implements Comparable {
                 continue;
             }
             if(otherVal == null) {
-                return -1; // null means we've went past the end of the ResultSet, and should be treated as INFINITY
+                return 1;
             }
             if(thisVal == null) {
-                return 1; // null means we've went past the end of the ResultSet, and should be treated as INFINITY
+                return -1;
             }
             int val = thisVal.compareTo(otherVal);
             if(val == 0) {

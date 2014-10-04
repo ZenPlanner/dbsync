@@ -73,7 +73,8 @@ public class Table extends TreeMap<String, Column> {
         List<String> pk = new ArrayList<>();
         for (Column col : values()) {
             if (col.isPrimaryKey()) {
-                pk.add("[" + col.getColumnName() + "]");
+                // TODO: Lexagraphical sorting is a horrible performance killer! Figure out UUID sort order on SQL server and match it in Key.compare()
+                pk.add(String.format("convert(varchar(max),[%s])", col.getColumnName()));
             }
             colNames.add(col.getSelect());
         }
