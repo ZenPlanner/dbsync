@@ -192,10 +192,14 @@ public class App {
      */
     private static String getColSelect(Column col) {
         if (smallTypes.contains(col.getDataType().toLowerCase())) {
-            return String.format("HASHBYTES('md5', convert(varbinary, [%s]))", col.getColumnName());
+            return String.format("HASHBYTES('md5', " +
+                    "case when [%s] is null then convert(varbinary,0) " +
+                    "else convert(varbinary, [%s]) end)", col.getColumnName(), col.getColumnName());
         }
         if (bigTypes.contains(col.getDataType().toLowerCase())) {
-            return String.format("HASHBYTES('md5', convert(nvarchar(max), [%s]))", col.getColumnName());
+            return String.format("HASHBYTES('md5', " +
+                    "case when [%s] is null then convert(varbinary,0) " +
+                    "else convert(nvarchar(max), [%s]) end)", col.getColumnName(), col.getColumnName());
         }
         throw new RuntimeException("Unknown type: " + col.getDataType());
     }
