@@ -115,11 +115,11 @@ public class DbComparator {
                 Key lastDstPk = new Key();
                 while (srs.getRow() > 0 || drs.getRow() > 0) {
                     //System.out.println("Syncing row " + (++i));
-                    ChangeType change = detectChange(lcd, srs, drs);
 
                     // Debugging
                     Key srcPk = lcd.getPk(srs); // Debugging
                     Key dstPk = lcd.getPk(drs); // Debugging
+                    ChangeType change = detectChange(lcd, srs, drs);
                     sb.append("" + srcPk + "-" + dstPk + " " + change + "\n"); // Debugging
                     if(Key.compare(lastSrcPk, srcPk) > 0) { // Debugging
                         int eq = Key.compare(lastSrcPk, srcPk); // Debugging
@@ -170,7 +170,7 @@ public class DbComparator {
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
-            count = 1; // Debugging
+            //count = 1; // Debugging
             System.out.println("Inserting " + count + " rows into " + table.getName());
             try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
@@ -360,16 +360,26 @@ public class DbComparator {
      */
     public static ChangeType detectChange(Table table, ResultSet srs, ResultSet drs) throws Exception {
         // Verify we're on the same row
-        Key spk = table.getPk(srs);
-        Key dpk = table.getPk(drs);
-        int eq = Key.compare(spk, dpk);
+        Key srcPk = table.getPk(srs);
+        Key dstPk = table.getPk(drs);
+        int eq = Key.compare(srcPk, dstPk);
+
+/*
+Left		Right
+ACD			BDE
+
+A			B			Left < right, insert A into right
+C			B			Left > right, delete B from right
+D			D			Left = right, update D in right
+null		E			Left > right, delete E from right
+*/
         if(eq < 0) {
-            // Source cursor is above dest cursor - destination row isn't present in source
-            return ChangeType.DELETE;
+            // Left < right, insert
+            return ChangeType.INSERT;
         }
         if(eq > 0) {
-            // Dest cursor is above source cursor - source row isn't in destination
-            return ChangeType.INSERT;
+            // Left > right, delete
+            return ChangeType.DELETE;
         }
 
         // Keys match, check hashes
