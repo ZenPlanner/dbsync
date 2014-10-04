@@ -11,7 +11,7 @@ import java.util.*;
 
 public class DbComparator {
 
-    private static final String filterCol = "partitionId";
+    private static final String filterCol = "partitionId"; // TODO: Parameterize
     private static final int maxKeys = 1999; // jtds driver limit
 
     public enum ChangeType {
