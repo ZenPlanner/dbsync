@@ -12,7 +12,7 @@ import java.util.*;
 public class DbComparator {
 
     private static final String filterCol = "partitionId";
-    private static final int maxKeys = 2000; // jtds driver limit
+    private static final int maxKeys = 1999; // jtds driver limit
 
     public enum ChangeType {
         INSERT, UPDATE, DELETE, NONE
@@ -47,7 +47,7 @@ public class DbComparator {
     }
 
     private static void setConstraints(Connection con, Collection<Table> tables, boolean enabled) {
-        for(Table table : tables) {
+        for (Table table : tables) {
             table.setConstraints(con, false);
         }
     }
@@ -99,7 +99,7 @@ public class DbComparator {
         String sql = lcd.writeHashedQuery(filterCol);
         //int i = 0; // TODO: Threading and progress indicator
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
-            if(lcd.hasColumn(filterCol)) {
+            if (lcd.hasColumn(filterCol)) {
                 stmt.setObject(1, filterValue);
                 dtmt.setObject(1, filterValue);
             }
@@ -121,11 +121,11 @@ public class DbComparator {
                     Key dstPk = lcd.getPk(drs); // Debugging
                     ChangeType change = detectChange(lcd, srs, drs);
                     sb.append("" + srcPk + "-" + dstPk + " " + change + "\n"); // Debugging
-                    if(Key.compare(lastSrcPk, srcPk) > 0) { // Debugging
+                    if (Key.compare(lastSrcPk, srcPk) > 0) { // Debugging
                         int eq = Key.compare(lastSrcPk, srcPk); // Debugging
                         throw new RuntimeException("Invalid sort order on source query!"); // Debugging
                     }
-                    if(Key.compare(lastDstPk, dstPk) > 0) { // Debugging
+                    if (Key.compare(lastDstPk, dstPk) > 0) { // Debugging
                         int eq = Key.compare(lastDstPk, dstPk); // Debugging
                         throw new RuntimeException("Invalid sort order on dest query!"); // Debugging
                     }
@@ -153,7 +153,7 @@ public class DbComparator {
 
     private static String keyListToString(List<Key> keys) {
         StringBuilder sb = new StringBuilder();
-        for(Key key : keys) {
+        for (Key key : keys) {
             sb.append(key.toString());
             sb.append("\n");
         }
@@ -284,13 +284,12 @@ public class DbComparator {
      * @throws Exception
      */
     // TODO: Break this monster out into separate methods for SQL and values
-    private static PreparedStatement createSelectQuery(Connection con, Table table, Set<Key> keys, int count)
-            throws Exception {
+    private static PreparedStatement createSelectQuery(Connection con, Table table, Set<Key> keys, int count) {
         List<Object> parms = new ArrayList<>();
         List<Column> pk = table.getPk();
         StringBuilder sb = new StringBuilder();
         int rowIndex = 0;
-        for(Key key : new HashSet<>(keys)) {
+        for (Key key : new HashSet<>(keys)) {
             keys.remove(key); // Remove as we go
             if (sb.length() > 0) {
                 sb.append("\tor ");
@@ -310,16 +309,20 @@ public class DbComparator {
                 parms.add(val);
             }
             sb.append(")\n");
-            if(rowIndex++ >= count) {
+            if (rowIndex++ >= count) {
                 break;
             }
         }
         String sql = String.format("select\n\t*\nfrom [%s]\nwhere %s", table.getName(), sb.toString());
-        PreparedStatement stmt = con.prepareStatement(sql);
-        for (int i = 0; i < parms.size(); i++) {
-            stmt.setObject(i + 1, parms.get(i));
+        try {
+            PreparedStatement stmt = con.prepareStatement(sql);
+            for (int i = 0; i < parms.size(); i++) {
+                stmt.setObject(i + 1, parms.get(i));
+            }
+            return stmt;
+        } catch (Exception ex) {
+            throw new RuntimeException("Error creating select query!", ex);
         }
-        return stmt;
     }
 
     /**
@@ -353,8 +356,8 @@ public class DbComparator {
      * Key.compare() method exhibits the same ordering as the database engine.
      *
      * @param table The table definition
-     * @param srs The source RecordSet
-     * @param drs The destination RecordSet
+     * @param srs   The source RecordSet
+     * @param drs   The destination RecordSet
      * @return A ChangeType indicating what action should be taken to sync the two databases
      * @throws Exception
      */
@@ -373,11 +376,11 @@ C			B			Left > right, delete B from right
 D			D			Left = right, update D in right
 null		E			Left > right, delete E from right
 */
-        if(eq < 0) {
+        if (eq < 0) {
             // Left < right, insert
             return ChangeType.INSERT;
         }
-        if(eq > 0) {
+        if (eq > 0) {
             // Left > right, delete
             return ChangeType.DELETE;
         }
