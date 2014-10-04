@@ -1,8 +1,32 @@
 package com.zenplanner.sql;
 
+import com.google.common.base.Joiner;
+
 import java.util.ArrayList;
 
 public class Key extends ArrayList<Comparable> implements Comparable {
+
+    @Override
+    public int hashCode() {
+        int hash = 0;
+        for(Object o : this) {
+            if(o == null) {
+                continue;
+            }
+            hash += o.hashCode();
+        }
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Key == false) {
+            return false;
+        }
+        int eq = this.compareTo(obj);
+        return eq == 0;
+    }
+
     @Override
     public int compareTo(Object o) {
         if(o instanceof Key == false) {
@@ -29,6 +53,11 @@ public class Key extends ArrayList<Comparable> implements Comparable {
             return val;
         }
         return 0;
+    }
+
+    @Override
+    public String toString() {
+        return "[" + Joiner.on(",").join(this) + "]";
     }
 
     public static int compare(Key left, Key right) {

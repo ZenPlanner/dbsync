@@ -96,35 +96,57 @@ public class DbComparator {
     private static void syncTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
-        String sql = lcd.writeHashedQuery(filterCol); // TODO: non-filtered table queries
+        String sql = lcd.writeHashedQuery(filterCol);
         //int i = 0; // TODO: Threading and progress indicator
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
-            stmt.setObject(1, filterValue);
-            dtmt.setObject(1, filterValue);
+            if(lcd.hasColumn(filterCol)) {
+                stmt.setObject(1, filterValue);
+                dtmt.setObject(1, filterValue);
+            }
+            List<String> pairs = new ArrayList<>();  // Debugging
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();
-                Map<ChangeType, List<Key>> changes = new HashMap<>();
-                changes.put(ChangeType.INSERT, new ArrayList<>());
-                changes.put(ChangeType.UPDATE, new ArrayList<>());
-                changes.put(ChangeType.DELETE, new ArrayList<>());
+                Map<ChangeType, Set<Key>> changes = new HashMap<>();
+                changes.put(ChangeType.INSERT, new HashSet<>());
+                changes.put(ChangeType.UPDATE, new HashSet<>());
+                changes.put(ChangeType.DELETE, new HashSet<>());
                 while (srs.getRow() > 0 || drs.getRow() > 0) {
                     //System.out.println("Syncing row " + (++i));
-                    ChangeType change = detectChange(srs, drs);
+                    ChangeType change = detectChange(lcd, srs, drs);
+
+                    // Debugging
+                    Key spk = lcd.getPk(srs); // Debugging
+                    Key dpk = lcd.getPk(drs); // Debugging
+                    pairs.add("" + spk + "-" + dpk + " " + change); // Debugging
+
                     Key key = getPk(lcd, srs, drs);
-                    List<Key> changeset = changes.get(change);
+                    Set<Key> changeset = changes.get(change);
                     if (changeset == null) {
                         continue;
                     }
                     changeset.add(key);
                     advance(srcTable, dstTable, srs, drs);
+
+                    // Debugging
+                    //insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT)); // Debugging
+                    //changes.get(ChangeType.INSERT).clear(); // Debugging
                 }
                 insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
             }
         }
     }
 
-    private static void insertRows(Connection scon, Connection dcon, Table table, List<Key> keys) throws Exception {
+    private static String keyListToString(List<Key> keys) {
+        StringBuilder sb = new StringBuilder();
+        for(Key key : keys) {
+            sb.append(key.toString());
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    private static void insertRows(Connection scon, Connection dcon, Table table, Set<Key> keys) throws Exception {
         if (keys.size() <= 0) {
             return;
         }
@@ -134,8 +156,9 @@ public class DbComparator {
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
+            count = 1; // Debugging
             System.out.println("Inserting " + count + " rows into " + table.getName());
-            try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, rowIndex, count)) {
+            try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     String sql = table.writeInsertQuery();
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
@@ -208,7 +231,7 @@ public class DbComparator {
      * @throws Exception
      */
     private static Key getPk(Table table, ResultSet srs, ResultSet drs) throws Exception {
-        ChangeType change = detectChange(srs, drs);
+        ChangeType change = detectChange(table, srs, drs);
         if (change == ChangeType.DELETE) {
             return table.getPk(drs);
         }
@@ -247,13 +270,14 @@ public class DbComparator {
      * @throws Exception
      */
     // TODO: Break this monster out into separate methods for SQL and values
-    private static PreparedStatement createSelectQuery(Connection con, Table table, List<Key> keys,
-                                                       int startIdx, int count) throws Exception {
+    private static PreparedStatement createSelectQuery(Connection con, Table table, Set<Key> keys, int count)
+            throws Exception {
         List<Object> parms = new ArrayList<>();
         List<Column> pk = table.getPk();
         StringBuilder sb = new StringBuilder();
-        for (int rowIdx = startIdx; rowIdx < startIdx + count; rowIdx++) {
-            Key key = keys.get(rowIdx);
+        int rowIndex = 0;
+        for(Key key : new HashSet<>(keys)) {
+            keys.remove(key); // Remove as we go
             if (sb.length() > 0) {
                 sb.append("\tor ");
             }
@@ -272,6 +296,9 @@ public class DbComparator {
                 parms.add(val);
             }
             sb.append(")\n");
+            if(rowIndex++ >= count) {
+                break;
+            }
         }
         String sql = String.format("select\n\t*\nfrom [%s]\nwhere %s", table.getName(), sb.toString());
         PreparedStatement stmt = con.prepareStatement(sql);
@@ -305,7 +332,33 @@ public class DbComparator {
         return out;
     }
 
-    public static ChangeType detectChange(ResultSet srs, ResultSet drs) throws Exception {
+    /**
+     * Basically this is the join logic. It compares the two rows presently under the cursors, and returns an action
+     * that needs to be taken based on whether the row is in left but not right, right but not left, or in both but
+     * changes are present. As usual for join code, this method assumes that the ResultSets are ordered, and the
+     * Key.compare() method exhibits the same ordering as the database engine.
+     *
+     * @param table The table definition
+     * @param srs The source RecordSet
+     * @param drs The destination RecordSet
+     * @return A ChangeType indicating what action should be taken to sync the two databases
+     * @throws Exception
+     */
+    public static ChangeType detectChange(Table table, ResultSet srs, ResultSet drs) throws Exception {
+        // Verify we're on the same row
+        Key spk = table.getPk(srs);
+        Key dpk = table.getPk(drs);
+        int eq = Key.compare(spk, dpk);
+        if(eq < 0) {
+            // Source cursor is above dest cursor - destination row isn't present in source
+            return ChangeType.DELETE;
+        }
+        if(eq > 0) {
+            // Dest cursor is above source cursor - source row isn't in destination
+            return ChangeType.INSERT;
+        }
+
+        // Keys match, check hashes
         byte[] shash = getHash(srs);
         byte[] dhash = getHash(drs);
         if (shash == null && dhash == null) {

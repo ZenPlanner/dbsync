@@ -44,6 +44,9 @@ public class Table extends TreeMap<String, Column> {
         return pk;
     }
 
+    public boolean hasColumn(String name) {
+        return containsKey(name);
+    }
 
     /**
      * @return the insert SQL for this table
@@ -53,12 +56,12 @@ public class Table extends TreeMap<String, Column> {
         List<String> valueNames = new ArrayList<>();
         for(Column col : values()) {
             String colName = col.getColumnName();
-            colNames.add("[" + colName + "]");
+            colNames.add("\n\t[" + colName + "]");
             valueNames.add("?");
         }
         String nameClause = Joiner.on(", ").join(colNames);
         String valueClause = Joiner.on(", ").join(valueNames);
-        String sql = String.format("insert into [%s] (%s) values (%s)", getName(), nameClause, valueClause);
+        String sql = String.format("insert into [%s] (%s\n) values (%s)", getName(), nameClause, valueClause);
         return sql;
     }
 
@@ -78,7 +81,7 @@ public class Table extends TreeMap<String, Column> {
         String orderClause = Joiner.on(",").join(pk);
         selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + selectClause + "\n\t) as [Hash]";
         String sql = String.format("select\n\t%s\nfrom [%s]\n", selectClause, getName());
-        if(filterCol != null) {
+        if(hasColumn(filterCol)) {
             sql += String.format("where [%s]=?\n", filterCol);
         }
         sql += String.format("order by %s", orderClause);
