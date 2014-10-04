@@ -12,7 +12,6 @@ import java.util.*;
 public class DbComparator {
 
     private static final String filterCol = "partitionId"; // TODO: Parameterize
-    private static final int maxKeys = 1999; // jtds driver limit
 
     public enum ChangeType {
         INSERT, UPDATE, DELETE, NONE
@@ -125,141 +124,21 @@ public class DbComparator {
                 changes.put(ChangeType.UPDATE, new HashSet<>());
                 changes.put(ChangeType.DELETE, new HashSet<>());
                 while (srs.getRow() > 0 || drs.getRow() > 0) {
-                    ChangeType change = detectChange(lcd, srs, drs);
-                    Key key = getPk(lcd, srs, drs);
+                    ChangeType change = lcd.detectChange(srs, drs);
+                    Key key = lcd.getPk(srs, drs);
                     Set<Key> changeset = changes.get(change);
                     if (changeset != null) {
                         changeset.add(key);
                     }
                     advance(srcTable, dstTable, srs, drs);
                 }
-                insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
-                updateRows(scon, dcon, lcd, changes.get(ChangeType.UPDATE));
-                deleteRows(dcon, lcd, changes.get(ChangeType.DELETE));
+                lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT));
+                lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE));
+                lcd.deleteRows(dcon, changes.get(ChangeType.DELETE));
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows!", ex);
             }
         }
-    }
-
-    private static void deleteRows(Connection dcon, Table table, Set<Key> keys) throws Exception {
-        List<Column> pk = table.getPk();
-        int rowLimit = (int) Math.floor(maxKeys / pk.size());
-        for (int rowIndex = 0; rowIndex < keys.size(); ) {
-            int count = Math.min(keys.size() - rowIndex, rowLimit);
-            System.out.println("Deleting " + count + " rows from " + table.getName());
-            try (PreparedStatement selectStmt = table.createDeleteQuery(dcon, keys, count)) {
-                selectStmt.execute();
-            }
-            rowIndex += count;
-        }
-    }
-
-    /**
-     * Queries the source database for row information on each row who's PK is in the keys array, and inserts those
-     * rows into the destination connection.
-     *
-     * @param scon The source connection
-     * @param dcon The destination connection
-     * @param table The table definition
-     * @param keys The keys of the rows for which to query
-     * @throws Exception
-     */
-    private static void insertRows(Connection scon, Connection dcon, Table table, Set<Key> keys) throws Exception {
-        if (keys.size() <= 0) {
-            return;
-        }
-
-        table.setIdentityInsert(dcon, true);
-        List<Column> pk = table.getPk();
-        int rowLimit = (int) Math.floor(maxKeys / pk.size());
-        for (int rowIndex = 0; rowIndex < keys.size(); ) {
-            int count = Math.min(keys.size() - rowIndex, rowLimit);
-            System.out.println("Inserting " + count + " rows into " + table.getName());
-            try (PreparedStatement selectStmt = table.createSelectQuery(scon, keys, count)) {
-                try (ResultSet rs = selectStmt.executeQuery()) {
-                    String sql = table.writeInsertQuery();
-                    try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
-                        while (rs.next()) {
-                            insertRow(insertStmt, table, rs);
-                        }
-                        try {
-                            insertStmt.executeBatch();
-                        } catch (Exception ex) {
-                            throw new RuntimeException("Error inserting rows!", ex);
-                        }
-                    }
-                }
-            }
-            rowIndex += count;
-        }
-    }
-
-    private static void updateRows(Connection scon, Connection dcon, Table table, Set<Key> keys) throws Exception {
-        if (keys.size() <= 0) {
-            return;
-        }
-        List<Column> pk = table.getPk();
-        int rowLimit = (int) Math.floor(maxKeys / pk.size());
-        for (int rowIndex = 0; rowIndex < keys.size(); ) {
-            int count = Math.min(keys.size() - rowIndex, rowLimit);
-            System.out.println("Updating " + count + " rows in " + table.getName());
-            try (PreparedStatement selectStmt = table.createSelectQuery(scon, keys, count)) {
-                try (ResultSet rs = selectStmt.executeQuery()) {
-                    String sql = table.writeUpdateQuery();
-                    try (PreparedStatement updateStmt = dcon.prepareStatement(sql)) {
-                        while (rs.next()) {
-                            updateRow(updateStmt, table, rs);
-                        }
-                        try {
-                            updateStmt.executeBatch();
-                        } catch (Exception ex) {
-                            throw new RuntimeException("Error updating rows!", ex);
-                        }
-                    }
-                }
-            }
-            rowIndex += count;
-        }
-    }
-
-    /**
-     * Adds the values from a given row to the PreparedStatement
-     *
-     * @param stmt  The PreparedStatement to help prepare
-     * @param table The table definition
-     * @param rs    The ResultSet to pull values from
-     * @throws Exception
-     */
-    private static void insertRow(PreparedStatement stmt, Table table, ResultSet rs) throws Exception {
-        stmt.clearParameters();
-        int i = 0;
-        for (Column col : table.values()) {
-            String colName = col.getColumnName();
-            Object val = rs.getObject(colName);
-            stmt.setObject(++i, val);
-        }
-        stmt.addBatch();
-    }
-
-    private static void updateRow(PreparedStatement stmt, Table table, ResultSet rs) throws Exception {
-        stmt.clearParameters();
-        int i = 0;
-        List<Column> pk = table.getPk();
-        for (Column col : table.values()) {
-            if(pk.contains(col)) {
-                continue; // TODO: Cache non-update columns for speed
-            }
-            String colName = col.getColumnName();
-            Object val = rs.getObject(colName);
-            stmt.setObject(++i, val);
-        }
-        for(Column col : pk) {
-            String colName = col.getColumnName();
-            Object val = rs.getObject(colName);
-            stmt.setObject(++i, val);
-        }
-        stmt.addBatch();
     }
 
     /**
@@ -285,23 +164,6 @@ public class DbComparator {
         }
         srs.next();
         drs.next();
-    }
-
-    /**
-     * Gets the primary key from whichever row exists
-     *
-     * @param table The table definition
-     * @param srs   The source RecordSet
-     * @param drs   The destination RecordSet
-     * @return The primary key of the row
-     * @throws Exception
-     */
-    private static Key getPk(Table table, ResultSet srs, ResultSet drs) throws Exception {
-        ChangeType change = detectChange(table, srs, drs);
-        if (change == ChangeType.DELETE) {
-            return table.getPk(drs);
-        }
-        return table.getPk(srs);
     }
 
     /**
@@ -341,73 +203,6 @@ public class DbComparator {
             }
         }
         return out;
-    }
-
-    /**
-     * Basically this is the join logic. It compares the two rows presently under the cursors, and returns an action
-     * that needs to be taken based on whether the row is in left but not right, right but not left, or in both but
-     * changes are present. As usual for join code, this method assumes that the ResultSets are ordered, and the
-     * Key.compare() method exhibits the same ordering as the database engine.
-     *
-     * @param table The table definition
-     * @param srs   The source RecordSet
-     * @param drs   The destination RecordSet
-     * @return A ChangeType indicating what action should be taken to sync the two databases
-     * @throws Exception
-     */
-    public static ChangeType detectChange(Table table, ResultSet srs, ResultSet drs) throws Exception {
-        // Verify we're on the same row
-        Key srcPk = table.getPk(srs);
-        Key dstPk = table.getPk(drs);
-        int eq = Key.compare(srcPk, dstPk);
-
-/*
-Left		Right
-ACD			BDE
-
-A			B			Left < right, insert A into right
-C			B			Left > right, delete B from right
-D			D			Left = right, update D in right
-null		E			Left > right, delete E from right
-*/
-        if (eq < 0) {
-            // Left < right, insert
-            return ChangeType.INSERT;
-        }
-        if (eq > 0) {
-            // Left > right, delete
-            return ChangeType.DELETE;
-        }
-
-        // Keys match, check hashes
-        byte[] shash = getHash(srs);
-        byte[] dhash = getHash(drs);
-        if (shash == null && dhash == null) {
-            throw new RuntimeException("Both rows are null!");
-        }
-        if (shash == null) {
-            return ChangeType.DELETE;
-        }
-        if (dhash == null) {
-            return ChangeType.INSERT;
-        }
-        if (Arrays.equals(shash, dhash)) {
-            return ChangeType.NONE;
-        }
-        return ChangeType.UPDATE;
-    }
-
-    /**
-     * Get the Hash from a ResultSet, or returns null if the ResultSet is exhausted
-     *
-     * @param rs The ResultSet
-     * @return The Hash, or null
-     */
-    private static byte[] getHash(ResultSet rs) throws Exception {
-        if (rs == null || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
-            return null;
-        }
-        return rs.getBytes("Hash");
     }
 
 }

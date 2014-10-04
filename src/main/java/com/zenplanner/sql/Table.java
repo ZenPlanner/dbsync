@@ -11,6 +11,7 @@ import java.util.*;
 public class Table extends TreeMap<String, Column> {
     private final String name;
     private List<Column> pk;
+    private static final int maxKeys = 1999; // jtds driver limit
 
     public Table(String name) {
         this.name = name;
@@ -211,6 +212,206 @@ public class Table extends TreeMap<String, Column> {
         } catch (Exception ex) {
             throw new RuntimeException("Error creating select query!", ex);
         }
+    }
+
+    public void deleteRows(Connection dcon, Set<Key> keys) throws Exception {
+        List<Column> pk = getPk();
+        int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        for (int rowIndex = 0; rowIndex < keys.size(); ) {
+            int count = Math.min(keys.size() - rowIndex, rowLimit);
+            System.out.println("Deleting " + count + " rows from " + getName());
+            try (PreparedStatement selectStmt = createDeleteQuery(dcon, keys, count)) {
+                selectStmt.execute();
+            }
+            rowIndex += count;
+        }
+    }
+
+    /**
+     * Queries the source database for row information on each row who's PK is in the keys array, and inserts those
+     * rows into the destination connection.
+     *
+     * @param scon The source connection
+     * @param dcon The destination connection
+     * @param keys The keys of the rows for which to query
+     * @throws Exception
+     */
+    public void insertRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
+        if (keys.size() <= 0) {
+            return;
+        }
+
+        setIdentityInsert(dcon, true);
+        List<Column> pk = getPk();
+        int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        for (int rowIndex = 0; rowIndex < keys.size(); ) {
+            int count = Math.min(keys.size() - rowIndex, rowLimit);
+            System.out.println("Inserting " + count + " rows into " + getName());
+            try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
+                try (ResultSet rs = selectStmt.executeQuery()) {
+                    String sql = writeInsertQuery();
+                    try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
+                        while (rs.next()) {
+                            insertRow(insertStmt, rs);
+                        }
+                        try {
+                            insertStmt.executeBatch();
+                        } catch (Exception ex) {
+                            throw new RuntimeException("Error inserting rows!", ex);
+                        }
+                    }
+                }
+            }
+            rowIndex += count;
+        }
+    }
+
+    public void updateRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
+        if (keys.size() <= 0) {
+            return;
+        }
+        List<Column> pk = getPk();
+        int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        for (int rowIndex = 0; rowIndex < keys.size(); ) {
+            int count = Math.min(keys.size() - rowIndex, rowLimit);
+            System.out.println("Updating " + count + " rows in " + getName());
+            try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
+                try (ResultSet rs = selectStmt.executeQuery()) {
+                    String sql = writeUpdateQuery();
+                    try (PreparedStatement updateStmt = dcon.prepareStatement(sql)) {
+                        while (rs.next()) {
+                            updateRow(updateStmt, rs);
+                        }
+                        try {
+                            updateStmt.executeBatch();
+                        } catch (Exception ex) {
+                            throw new RuntimeException("Error updating rows!", ex);
+                        }
+                    }
+                }
+            }
+            rowIndex += count;
+        }
+    }
+
+    /**
+     * Adds the values from a given row to the PreparedStatement
+     *
+     * @param stmt  The PreparedStatement to help prepare
+     * @param rs    The ResultSet to pull values from
+     * @throws Exception
+     */
+    private void insertRow(PreparedStatement stmt, ResultSet rs) throws Exception {
+        stmt.clearParameters();
+        int i = 0;
+        for (Column col : values()) {
+            String colName = col.getColumnName();
+            Object val = rs.getObject(colName);
+            stmt.setObject(++i, val);
+        }
+        stmt.addBatch();
+    }
+
+    private void updateRow(PreparedStatement stmt, ResultSet rs) throws Exception {
+        stmt.clearParameters();
+        int i = 0;
+        List<Column> pk = getPk();
+        for (Column col : values()) {
+            if(pk.contains(col)) {
+                continue; // TODO: Cache non-update columns for speed
+            }
+            String colName = col.getColumnName();
+            Object val = rs.getObject(colName);
+            stmt.setObject(++i, val);
+        }
+        for(Column col : pk) {
+            String colName = col.getColumnName();
+            Object val = rs.getObject(colName);
+            stmt.setObject(++i, val);
+        }
+        stmt.addBatch();
+    }
+
+    /**
+     * Gets the primary key from whichever row exists
+     *
+     * @param srs   The source RecordSet
+     * @param drs   The destination RecordSet
+     * @return The primary key of the row
+     * @throws Exception
+     */
+    public Key getPk(ResultSet srs, ResultSet drs) throws Exception {
+        DbComparator.ChangeType change = detectChange(srs, drs);
+        if (change == DbComparator.ChangeType.DELETE) {
+            return getPk(drs);
+        }
+        return getPk(srs);
+    }
+
+    /**
+     * Basically this is the join logic. It compares the two rows presently under the cursors, and returns an action
+     * that needs to be taken based on whether the row is in left but not right, right but not left, or in both but
+     * changes are present. As usual for join code, this method assumes that the ResultSets are ordered, and the
+     * Key.compare() method exhibits the same ordering as the database engine.
+     *
+     * @param srs   The source RecordSet
+     * @param drs   The destination RecordSet
+     * @return A ChangeType indicating what action should be taken to sync the two databases
+     * @throws Exception
+     */
+    public DbComparator.ChangeType detectChange(ResultSet srs, ResultSet drs) throws Exception {
+        // Verify we're on the same row
+        Key srcPk = getPk(srs);
+        Key dstPk = getPk(drs);
+        int eq = Key.compare(srcPk, dstPk);
+
+/*
+Left		Right
+ACD			BDE
+
+A			B			Left < right, insert A into right
+C			B			Left > right, delete B from right
+D			D			Left = right, update D in right
+null		E			Left > right, delete E from right
+*/
+        if (eq < 0) {
+            // Left < right, insert
+            return DbComparator.ChangeType.INSERT;
+        }
+        if (eq > 0) {
+            // Left > right, delete
+            return DbComparator.ChangeType.DELETE;
+        }
+
+        // Keys match, check hashes
+        byte[] shash = getHash(srs);
+        byte[] dhash = getHash(drs);
+        if (shash == null && dhash == null) {
+            throw new RuntimeException("Both rows are null!");
+        }
+        if (shash == null) {
+            return DbComparator.ChangeType.DELETE;
+        }
+        if (dhash == null) {
+            return DbComparator.ChangeType.INSERT;
+        }
+        if (Arrays.equals(shash, dhash)) {
+            return DbComparator.ChangeType.NONE;
+        }
+        return DbComparator.ChangeType.UPDATE;
+    }
+
+    /**
+     * Get the Hash from a ResultSet, or returns null if the ResultSet is exhausted
+     *
+     * @param rs The ResultSet
+     * @return The Hash, or null
+     */
+    private static byte[] getHash(ResultSet rs) throws Exception {
+        if (rs == null || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
+            return null;
+        }
+        return rs.getBytes("Hash");
     }
 
 }
