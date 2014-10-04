@@ -19,7 +19,7 @@ public class App {
         // Get tables and columns
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                DbComparator.Compare(scon, dcon, filterValue);
+                DbComparator.Syncronize(scon, dcon, filterValue);
             }
         }
     }

@@ -16,11 +16,11 @@ public class Key extends ArrayList<Comparable> implements Comparable {
             if(thisVal == null && otherVal == null) {
                 continue;
             }
-            if(otherVal != null) {
-                return -1;
+            if(otherVal == null) {
+                return -1; // null means we've went past the end of the ResultSet, and should be treated as INFINITY
             }
-            if(thisVal != null) {
-                return 1;
+            if(thisVal == null) {
+                return 1; // null means we've went past the end of the ResultSet, and should be treated as INFINITY
             }
             int val = thisVal.compareTo(otherVal);
             if(val == 0) {

@@ -13,11 +13,7 @@ import java.util.*;
 public class DbComparator {
 
     private static final String filterCol = "partitionId";
-    private static final List<String> smallTypes = Arrays.asList(new String[]{
-            "uniqueidentifier", "bigint", "date", "datetime", "datetime2", "smalldatetime", "tinyint", "smallint",
-            "int", "decimal", "bit", "money", "smallmoney", "char", "float"
-    });
-    private static final List<String> bigTypes = Arrays.asList(new String[]{"varchar", "nvarchar", "text"});
+
     public enum ChangeType {
         INSERT, UPDATE, DELETE, NONE
     }
@@ -26,7 +22,7 @@ public class DbComparator {
 
     }
 
-    public static void Compare(Connection scon, Connection dcon, String filterValue) {
+    public static void Syncronize(Connection scon, Connection dcon, String filterValue) {
         try {
             Map<String, Table> srcTables = filterTables(getTables(scon));
             Map<String, Table> dstTables = filterTables(getTables(dcon));
@@ -77,17 +73,17 @@ public class DbComparator {
     /**
      * Compares two tables and syncronizes the results
      *
-     * @param scon The source connection
-     * @param dcon The destination connection
-     * @param srcTable The source table
-     * @param dstTable The destination table
+     * @param scon        The source connection
+     * @param dcon        The destination connection
+     * @param srcTable    The source table
+     * @param dstTable    The destination table
      * @param filterValue A partitionId
      * @throws Exception
      */
     private static void syncTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
-        String sql = writeHashedQuery(lcd);
+        String sql = lcd.writeHashedQuery(filterCol); // TODO: non-filtered table queries
         int i = 0;
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
             stmt.setObject(1, filterValue);
@@ -99,24 +95,61 @@ public class DbComparator {
                 changes.put(ChangeType.INSERT, new ArrayList<>());
                 changes.put(ChangeType.UPDATE, new ArrayList<>());
                 changes.put(ChangeType.DELETE, new ArrayList<>());
-                while(srs.getRow() > 0 || drs.getRow() > 0) {
+                while (srs.getRow() > 0 || drs.getRow() > 0) {
                     System.out.println("Syncing row " + (++i));
                     ChangeType change = detectChange(srs, drs);
                     Key key = getPk(lcd, srs, drs);
                     List<Key> changeset = changes.get(change);
-                    if(changeset == null) {
+                    if (changeset == null) {
                         continue;
                     }
                     changeset.add(key);
                     advance(srcTable, dstTable, srs, drs);
                 }
-                insertRows(lcd, changes.get(ChangeType.INSERT));
+                insertRows(scon, dcon, lcd, changes.get(ChangeType.INSERT));
             }
         }
     }
 
-    private static void insertRows(Table table, List<Key> changes) {
+    private static void insertRows(Connection scon, Connection dcon, Table table, List<Key> keys) throws Exception {
+        if(keys.size() <= 0) {
+            return;
+        }
+        try(Statement stmt = dcon.createStatement()) {
+            stmt.executeUpdate(String.format("SET IDENTITY_INSERT [%s] ON;", table.getName()));
+        } catch (Exception ex) {
+            // TODO: Nicer solution for tables that don't have an identity
+        }
+        try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys)) {
+            try (ResultSet rs = selectStmt.executeQuery()) {
+                String sql = table.writeInsertQuery();
+                try(PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
+                    while (rs.next()) {
+                        insertRow(insertStmt, table, rs);
+                    }
+                    insertStmt.executeBatch();
+                }
+            }
+        }
+    }
 
+    /**
+     * Adds the values from a given row to the PreparedStatement
+     *
+     * @param stmt The PreparedStatement to help prepare
+     * @param table The table definition
+     * @param rs The ResultSet to pull values from
+     * @throws Exception
+     */
+    private static void insertRow(PreparedStatement stmt, Table table, ResultSet rs) throws Exception {
+        stmt.clearParameters();
+        int i = 0;
+        for (Column col : table.values()) {
+            String colName = col.getColumnName();
+            Object val = rs.getObject(colName);
+            stmt.setObject(++i, val);
+        }
+        stmt.addBatch();
     }
 
     /**
@@ -124,19 +157,19 @@ public class DbComparator {
      *
      * @param srcTable The source table
      * @param dstTable The destination table
-     * @param srs The source RecordSet
-     * @param drs The destination RecordSet
+     * @param srs      The source RecordSet
+     * @param drs      The destination RecordSet
      * @throws Exception
      */
     private static void advance(Table srcTable, Table dstTable, ResultSet srs, ResultSet drs) throws Exception {
-        Key spk = getPk(srcTable, srs);
-        Key dpk = getPk(dstTable, drs);
+        Key spk = srcTable.getPk(srs);
+        Key dpk = dstTable.getPk(drs);
         int val = Key.compare(spk, dpk);
-        if(val < 0) {
+        if (val < 0) {
             srs.next();
             return;
         }
-        if(val > 0) {
+        if (val > 0) {
             drs.next();
             return;
         }
@@ -148,40 +181,17 @@ public class DbComparator {
      * Gets the primary key from whichever row exists
      *
      * @param table The table definition
-     * @param srs The source RecordSet
-     * @param drs The destination RecordSet
+     * @param srs   The source RecordSet
+     * @param drs   The destination RecordSet
      * @return The primary key of the row
      * @throws Exception
      */
     private static Key getPk(Table table, ResultSet srs, ResultSet drs) throws Exception {
         ChangeType change = detectChange(srs, drs);
-        if(change == ChangeType.DELETE) {
-            return getPk(table, drs);
+        if (change == ChangeType.DELETE) {
+            return table.getPk(drs);
         }
-        return getPk(table, srs);
-    }
-
-    /**
-     * Pulls an array of objects that represents the PK from a row
-     *
-     * @param tab The table definition
-     * @param rs A ResultSet to check
-     * @return A List representing the PK
-     * @throws Exception
-     */
-    private static Key getPk(Table tab, ResultSet rs) throws Exception {
-        Key key = new Key();
-        if(rs.isClosed() || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
-            key.add(Double.POSITIVE_INFINITY);
-            return key;
-        }
-        for(Column col : tab.values()) {
-            if(col.isPrimaryKey()) {
-                Comparable<?> val = (Comparable<?>)rs.getObject(col.getColumnName());
-                key.add(val);
-            }
-        }
-        return key;
+        return table.getPk(srs);
     }
 
     /**
@@ -206,46 +216,46 @@ public class DbComparator {
     }
 
     /**
-     * Writes a magical query that returns the primary key and a hash of the row
+     * Creates a PreparedStatement that returns all of the rows for the given set of keys.
+     * Don't forget to close the statement!
      *
-     * @param table The table to query
-     * @return A magical query that returns the primary key and a hash of the row
+     * @param con   The connection to use to query the DB for its schema
+     * @param table The table definition
+     * @param keys  The keys of the rows for which to query
+     * @return A PreparedStatement that returns all the rows for the given set of keys.
+     * @throws Exception
      */
-    private static String writeHashedQuery(Table table) {
-        List<String> colNames = new ArrayList<>();
-        List<String> pk = new ArrayList<>();
-        for (Column col : table.values()) {
-            if (col.isPrimaryKey()) {
-                pk.add("[" + col.getColumnName() + "]");
+    // TODO: Break this monster out into separate methods for SQL and values
+    private static PreparedStatement createSelectQuery(Connection con, Table table, List<Key> keys) throws Exception {
+        List<Object> parms = new ArrayList<>();
+        List<Column> pk = table.getPk();
+        StringBuilder sb = new StringBuilder();
+        for (Key key : keys) {
+            if (sb.length() > 0) {
+                sb.append("\tor ");
             }
-            colNames.add(getColSelect(col));
-        }
-        String selectClause = Joiner.on("+\n\t\t").join(colNames);
-        String orderClause = Joiner.on(",").join(pk);
-        selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + selectClause + "\n\t) as [Hash]";
-        String sql = String.format("select\n\t%s\nfrom [%s]\nwhere [%s]=?\norder by %s",
-                selectClause, table.getName(), filterCol, orderClause);
-        return sql;
-    }
+            sb.append("(");
+            for (int i = 0; i < pk.size(); i++) {
+                if (i > 0) {
+                    sb.append(" and ");
+                }
+                Column col = pk.get(i);
+                sb.append("[");
+                sb.append(col.getColumnName());
+                sb.append("]=?");
 
-    /**
-     * Returns the SQL to add to a select clause for the given column
-     *
-     * @param col The Column object
-     * @return the SQL to add to a select clause for the given column
-     */
-    private static String getColSelect(Column col) {
-        if (smallTypes.contains(col.getDataType().toLowerCase())) {
-            return String.format("HASHBYTES('md5', " +
-                    "case when [%s] is null then convert(varbinary,0) " +
-                    "else convert(varbinary, [%s]) end)", col.getColumnName(), col.getColumnName());
+                // Grab the value of the parameter
+                Object val = key.get(i);
+                parms.add(val);
+            }
+            sb.append(")\n");
         }
-        if (bigTypes.contains(col.getDataType().toLowerCase())) {
-            return String.format("HASHBYTES('md5', " +
-                    "case when [%s] is null then convert(varbinary,0) " +
-                    "else convert(nvarchar(max), [%s]) end)", col.getColumnName(), col.getColumnName());
+        String sql = String.format("select\n\t*\nfrom [%s]\nwhere %s", table.getName(), sb.toString());
+        PreparedStatement stmt = con.prepareStatement(sql);
+        for (int i = 0; i < parms.size(); i++) {
+            stmt.setObject(i + 1, parms.get(i));
         }
-        throw new RuntimeException("Unknown type: " + col.getDataType());
+        return stmt;
     }
 
     /**
@@ -279,16 +289,16 @@ public class DbComparator {
     public static ChangeType detectChange(ResultSet srs, ResultSet drs) throws Exception {
         byte[] shash = getHash(srs);
         byte[] dhash = getHash(drs);
-        if(shash == null && dhash == null) {
+        if (shash == null && dhash == null) {
             throw new RuntimeException("Both rows are null!");
         }
-        if(shash == null) {
+        if (shash == null) {
             return ChangeType.DELETE;
         }
-        if(dhash == null) {
+        if (dhash == null) {
             return ChangeType.INSERT;
         }
-        if(shash.equals(dhash)) {
+        if (shash.equals(dhash)) {
             return ChangeType.NONE;
         }
         return ChangeType.UPDATE;
@@ -301,7 +311,7 @@ public class DbComparator {
      * @return The Hash, or null
      */
     private static byte[] getHash(ResultSet rs) throws Exception {
-        if(rs == null || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
+        if (rs == null || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
             return null;
         }
         return rs.getBytes("Hash");
