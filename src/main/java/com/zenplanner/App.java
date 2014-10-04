@@ -79,19 +79,28 @@ public class App {
         if(shash == null && dhash == null) {
             throw new RuntimeException("Both rows are null!");
         }
+        if(shash != null && dhash != null) {
+            update();
+        }
+        if(shash == null) {
+            delete();
+        }
+        if(dhash == null) {
+            insert();
+        }
     }
 
 
-    private void update() {
-
+    private static void update() {
+        System.out.println("Update");
     }
 
-    private void delete() {
-
+    private static void delete() {
+        System.out.println("delete");
     }
 
-    private void insert() {
-
+    private static void insert() {
+        System.out.println("insert");
     }
 
     /**
