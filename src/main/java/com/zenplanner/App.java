@@ -57,6 +57,7 @@ public class App {
                                    String filterValue) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = writeHashedQuery(lcd);
+        int i = 0;
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
             stmt.setObject(1, filterValue);
             dtmt.setObject(1, filterValue);
@@ -64,6 +65,7 @@ public class App {
                 srs.next();
                 drs.next();
                 while(srs.getRow() > 0 || drs.getRow() > 0) {
+                    System.out.println("Syncing row " + (++i));
                     syncRow(srs, drs);
                     advance(srcTable, dstTable, srs, drs);
                 }
