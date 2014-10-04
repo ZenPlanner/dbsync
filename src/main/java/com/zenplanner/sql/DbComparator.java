@@ -148,7 +148,7 @@ public class DbComparator {
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
             System.out.println("Deleting " + count + " rows from " + table.getName());
-            try (PreparedStatement selectStmt = createDeleteQuery(dcon, table, keys, count)) {
+            try (PreparedStatement selectStmt = table.createDeleteQuery(dcon, keys, count)) {
                 selectStmt.execute();
             }
             rowIndex += count;
@@ -176,7 +176,7 @@ public class DbComparator {
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
             System.out.println("Inserting " + count + " rows into " + table.getName());
-            try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, count)) {
+            try (PreparedStatement selectStmt = table.createSelectQuery(scon, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     String sql = table.writeInsertQuery();
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
@@ -204,7 +204,7 @@ public class DbComparator {
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
             System.out.println("Updating " + count + " rows in " + table.getName());
-            try (PreparedStatement selectStmt = createSelectQuery(scon, table, keys, count)) {
+            try (PreparedStatement selectStmt = table.createSelectQuery(scon, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     String sql = table.writeUpdateQuery();
                     try (PreparedStatement updateStmt = dcon.prepareStatement(sql)) {
@@ -323,56 +323,6 @@ public class DbComparator {
             table.put(colName, srcTable.get(colName));
         }
         return table;
-    }
-
-    private static PreparedStatement createSelectQuery(Connection con, Table table, Set<Key> keys, int count) {
-        return createQuery("select *", con, table, keys, count);
-    }
-
-    private static PreparedStatement createDeleteQuery(Connection con, Table table, Set<Key> keys, int count) {
-        return createQuery("delete", con, table, keys, count);
-    }
-
-    // TODO: Break this monster out into separate methods for SQL and values
-    private static PreparedStatement createQuery(String prefix, Connection con, Table table, Set<Key> keys, int count) {
-        List<Object> parms = new ArrayList<>();
-        List<Column> pk = table.getPk();
-        StringBuilder sb = new StringBuilder();
-        int rowIndex = 0;
-        for (Key key : new HashSet<>(keys)) {
-            keys.remove(key); // Remove as we go
-            if (sb.length() > 0) {
-                sb.append("\tor ");
-            }
-            sb.append("(");
-            for (int pkIdx = 0; pkIdx < pk.size(); pkIdx++) {
-                if (pkIdx > 0) {
-                    sb.append(" and ");
-                }
-                Column col = pk.get(pkIdx);
-                sb.append("[");
-                sb.append(col.getColumnName());
-                sb.append("]=?");
-
-                // Grab the value of the parameter
-                Object val = key.get(pkIdx);
-                parms.add(val);
-            }
-            sb.append(")\n");
-            if (rowIndex++ >= count) {
-                break;
-            }
-        }
-        String sql = String.format("%s\nfrom [%s]\nwhere %s", prefix, table.getName(), sb.toString());
-        try {
-            PreparedStatement stmt = con.prepareStatement(sql);
-            for (int i = 0; i < parms.size(); i++) {
-                stmt.setObject(i + 1, parms.get(i));
-            }
-            return stmt;
-        } catch (Exception ex) {
-            throw new RuntimeException("Error creating select query!", ex);
-        }
     }
 
     /**

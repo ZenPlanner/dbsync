@@ -3,11 +3,10 @@ package com.zenplanner.sql;
 import com.google.common.base.Joiner;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 
 public class Table extends TreeMap<String, Column> {
     private final String name;
@@ -161,6 +160,56 @@ public class Table extends TreeMap<String, Column> {
             stmt.executeUpdate(String.format("SET IDENTITY_INSERT [%s] %s;", getName(), state));
         } catch (Exception ex) {
             // TODO: Nicer solution for tables that don't have an identity
+        }
+    }
+
+    public PreparedStatement createSelectQuery(Connection con, Set<Key> keys, int count) {
+        return createQuery("select *", con, keys, count);
+    }
+
+    public PreparedStatement createDeleteQuery(Connection con, Set<Key> keys, int count) {
+        return createQuery("delete", con, keys, count);
+    }
+
+    // TODO: Break this monster out into separate methods for SQL and values
+    private PreparedStatement createQuery(String prefix, Connection con, Set<Key> keys, int count) {
+        List<Object> parms = new ArrayList<>();
+        List<Column> pk = getPk();
+        StringBuilder sb = new StringBuilder();
+        int rowIndex = 0;
+        for (Key key : new HashSet<>(keys)) {
+            keys.remove(key); // Remove as we go
+            if (sb.length() > 0) {
+                sb.append("\tor ");
+            }
+            sb.append("(");
+            for (int pkIdx = 0; pkIdx < pk.size(); pkIdx++) {
+                if (pkIdx > 0) {
+                    sb.append(" and ");
+                }
+                Column col = pk.get(pkIdx);
+                sb.append("[");
+                sb.append(col.getColumnName());
+                sb.append("]=?");
+
+                // Grab the value of the parameter
+                Object val = key.get(pkIdx);
+                parms.add(val);
+            }
+            sb.append(")\n");
+            if (rowIndex++ >= count) {
+                break;
+            }
+        }
+        String sql = String.format("%s\nfrom [%s]\nwhere %s", prefix, getName(), sb.toString());
+        try {
+            PreparedStatement stmt = con.prepareStatement(sql);
+            for (int i = 0; i < parms.size(); i++) {
+                stmt.setObject(i + 1, parms.get(i));
+            }
+            return stmt;
+        } catch (Exception ex) {
+            throw new RuntimeException("Error creating select query!", ex);
         }
     }
 
