@@ -22,6 +22,13 @@ public class DbComparator {
 
     }
 
+    /**
+     * Takes connections to two databases, compares deltas, and upserts appropriate data to get them in sync
+     *
+     * @param scon The source connection
+     * @param dcon The destination connection
+     * @param filterValue A value with which to filter partition data
+     */
     public static void Syncronize(Connection scon, Connection dcon, String filterValue) {
         try {
             Map<String, Table> srcTables = filterTables(getTables(scon));
@@ -46,6 +53,13 @@ public class DbComparator {
         }
     }
 
+    /**
+     * Turns all constraints on or off
+     *
+     * @param con The connection on which to enable or disable constraints
+     * @param tables A collection of tables on which to operate
+     * @param enabled A flag indicating if constraints should be enabled or disabled
+     */
     private static void setConstraints(Connection con, Collection<Table> tables, boolean enabled) {
         for (Table table : tables) {
             table.setConstraints(con, false);
@@ -127,6 +141,16 @@ public class DbComparator {
         }
     }
 
+    /**
+     * Queries the source database for row information on each row who's PK is in the keys array, and inserts those
+     * rows into the destination connection.
+     *
+     * @param scon The source connection
+     * @param dcon The destination connection
+     * @param table The table definition
+     * @param keys The keys of the rows for which to query
+     * @throws Exception
+     */
     private static void insertRows(Connection scon, Connection dcon, Table table, Set<Key> keys) throws Exception {
         if (keys.size() <= 0) {
             return;
