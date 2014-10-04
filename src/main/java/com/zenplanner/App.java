@@ -3,11 +3,15 @@ package com.zenplanner;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Resources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
 
 public class App {
+    private static final Logger log = LoggerFactory.getLogger(App.class);
+
     private static final String filterCol = "partitionId";
     private static final List<String> smallTypes = Arrays.asList(new String[]{
             "uniqueidentifier", "bigint", "date", "datetime", "datetime2", "smalldatetime", "tinyint", "smallint",
@@ -32,6 +36,7 @@ public class App {
                         continue;
                     }
                     Table dstTable = dstTables.get(srcTable.getName());
+                    System.out.println("Comparing table: " + srcTable.getName());
                     compTables(scon, dcon, srcTable, dstTable, filterValue);
                 }
             }
@@ -58,11 +63,33 @@ public class App {
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();
-                while(srs.getRow() > 0 && drs.getRow() > 0) {
+                while(srs.getRow() > 0 || drs.getRow() > 0) {
+                    syncRow(srs, drs);
                     advance(srcTable, dstTable, srs, drs);
                 }
             }
         }
+    }
+
+    private static void syncRow(ResultSet srs, ResultSet drs) throws Exception {
+        byte[] shash = getHash(srs);
+        byte[] dhash = getHash(drs);
+        if(shash == null && dhash == null) {
+            throw new RuntimeException("Both rows are null!");
+        }
+    }
+
+
+    private void update() {
+
+    }
+
+    private void delete() {
+
+    }
+
+    private void insert() {
+
     }
 
     /**
@@ -230,5 +257,18 @@ public class App {
             }
         }
         return tables;
+    }
+
+    /**
+     * Get the Hash from a ResultSet, or returns null if the ResultSet is exhausted
+     *
+     * @param rs The ResultSet
+     * @return The Hash, or null
+     */
+    private static byte[] getHash(ResultSet rs) throws Exception {
+        if(rs == null || rs.isBeforeFirst() || rs.isAfterLast() || rs.getRow() == 0) {
+            return null;
+        }
+        return rs.getBytes("Hash");
     }
 }
