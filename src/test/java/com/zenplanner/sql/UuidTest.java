@@ -1,5 +1,6 @@
 package com.zenplanner.sql;
 
+import com.google.common.base.Joiner;
 import com.sun.javafx.image.ByteToBytePixelConverter;
 import junit.framework.Assert;
 import junit.framework.Test;
@@ -20,8 +21,6 @@ import java.util.stream.Collectors;
 
 public class UuidTest extends TestCase {
 
-    private static final int count = 10000;
-
     public UuidTest(String testName) {
         super(testName);
     }
@@ -31,14 +30,20 @@ public class UuidTest extends TestCase {
     }
 
     public void testApp() throws Exception {
+        // Generate interesting UUIDs
+        List<UUID> testUuids = new ArrayList<>();
         for(int i = 0; i < 16; i++) {
             byte[] bytes = new byte[16];
             for(int b = 0; b < 256; b++) {
                 bytes[i] = (byte)b;
                 UUID original = byteArrayToUuid(bytes);
-                System.out.println(original);
+                testUuids.add(original);
             }
         }
+
+        // Create select statement
+        String valueClause = Joiner.on("')),\n(CONVERT(uniqueidentifier, '").join(testUuids);
+        String sql = String.format("SELECT \n\t*\nFROM (\n\tVALUES (CONVERT(uniqueidentifier, '%s'))\n\t) tg(UUID)\norder by UUID", valueClause);
 
         // Get 100 random UUIDs sorted by SQL
         List<UUID> sqlList = new ArrayList<>();
@@ -46,7 +51,6 @@ public class UuidTest extends TestCase {
         String conStr = "jdbc:jtds:sqlserver://localhost:1433/ZenPlanner-Development;user=zenwebdev;password=Enterprise!";
         try (Connection con = DriverManager.getConnection(conStr)) {
             try (Statement stmt = con.createStatement()) {
-                String sql = String.format("select top %s NEWID() as UUID from sys.sysobjects order by UUID;", count);
                 try (ResultSet rs = stmt.executeQuery(sql)) {
                     while (rs.next()) {
                         byte[] bytes = rs.getBytes(1);
