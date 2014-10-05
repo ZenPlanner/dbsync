@@ -1,8 +1,10 @@
 package com.zenplanner.sql;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
@@ -21,6 +23,7 @@ public class FormMain extends JFrame {
     private JTextField tbPartitionId;
 
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
+    private final DbComparator comp = new DbComparator();
 
     public FormMain() {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -28,6 +31,13 @@ public class FormMain extends JFrame {
         setSize(800, 600);
         setVisible(true);
         pack();
+
+        comp.addListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                FormMain.this.dispatchEvent(e);
+            }
+        });
 
         btnGo.addActionListener(new ActionListener() {
             @Override
@@ -43,7 +53,6 @@ public class FormMain extends JFrame {
                                     tbDstUsername.getText(), tbDstPassword.getText());
                             try (Connection scon = DriverManager.getConnection(srcCon)) {
                                 try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                                    DbComparator comp = new DbComparator();
                                     comp.synchronize(scon, dcon, tbPartitionId.getText());
                                 }
                             }
@@ -55,4 +64,21 @@ public class FormMain extends JFrame {
             }
         });
     }
+
+    @Override
+    protected void processEvent(AWTEvent e) {
+        super.processEvent(e);
+
+        if(e instanceof ActionEvent == false) {
+            return;
+        }
+        ActionEvent action = (ActionEvent)e;
+        if(action.getSource() != comp) {
+            return;
+        }
+        pbMain.setMaximum(comp.getTableCount());
+        pbMain.setValue(comp.getCurrentTable());
+    }
+
+
 }
