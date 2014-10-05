@@ -3,15 +3,22 @@ package com.zenplanner.sql;
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DbComparator {
 
     private static final String filterCol = "partitionId"; // TODO: Parameterize
+
+    private final AtomicInteger tableCount = new AtomicInteger();
+    private final AtomicInteger currentTable = new AtomicInteger();
+    private final Set<ActionListener> listeners = Collections.synchronizedSet(new HashSet<ActionListener>());
 
     public enum ChangeType {
         INSERT, UPDATE, DELETE, NONE
@@ -28,19 +35,27 @@ public class DbComparator {
      * @param dcon The destination connection
      * @param filterValue A value with which to filter partition data
      */
-    public static void Syncronize(Connection scon, Connection dcon, String filterValue) {
+    public void synchronize(Connection scon, Connection dcon, String filterValue) {
         try {
+            // Get the intersection of the tables
             Map<String, Table> srcTables = filterTables(getTables(scon));
             Map<String, Table> dstTables = getTables(dcon);
+            Set<String> tableNames = new HashSet<>();
+            tableNames.addAll(srcTables.keySet());
+            tableNames.retainAll(dstTables.keySet());
+            tableCount.set(tableNames.size());
+            currentTable.set(0);
+
+            // Synchronize them
             try {
                 setConstraints(dcon, dstTables.values(), false);
-                for (Table srcTable : srcTables.values()) {
-                    if (!dstTables.containsKey(srcTable.getName())) {
-                        continue;
-                    }
-                    Table dstTable = dstTables.get(srcTable.getName());
+                for(String tableName : tableNames) {
+                    Table srcTable = srcTables.get(tableName);
+                    Table dstTable = dstTables.get(tableName);
                     System.out.println("Comparing table: " + srcTable.getName());
                     syncTables(scon, dcon, srcTable, dstTable, filterValue);
+                    currentTable.incrementAndGet();
+                    fireProgress();
                 }
             } catch (Exception ex) {
                 throw ex;
@@ -204,6 +219,25 @@ public class DbComparator {
             }
         }
         return out;
+    }
+
+    public int getCurrentTable() {
+        return currentTable.get();
+    }
+
+    public int getTableCount() {
+        return tableCount.get();
+    }
+
+    private void fireProgress() {
+        ActionEvent ae = new ActionEvent(this, getCurrentTable(), null);
+        for(ActionListener pl : listeners) {
+            pl.actionPerformed(ae);
+        }
+    }
+
+    public void addListener(ActionListener val) {
+        listeners.add(val);
     }
 
 }

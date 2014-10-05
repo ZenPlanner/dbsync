@@ -23,7 +23,9 @@
           </grid>
           <gridbag weightx="1.0" weighty="0.0"/>
         </constraints>
-        <properties/>
+        <properties>
+          <text value="localhost"/>
+        </properties>
       </component>
       <component id="43904" class="javax.swing.JLabel">
         <constraints>
@@ -41,7 +43,9 @@
           </grid>
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
-        <properties/>
+        <properties>
+          <text value="ZenPlanner-Development"/>
+        </properties>
       </component>
       <component id="703d0" class="javax.swing.JLabel">
         <constraints>
@@ -80,7 +84,9 @@
           </grid>
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
-        <properties/>
+        <properties>
+          <text value="zenwebdev"/>
+        </properties>
       </component>
       <vspacer id="d7f28">
         <constraints>
@@ -145,24 +151,6 @@
           <text value="Password"/>
         </properties>
       </component>
-      <component id="638b2" class="javax.swing.JTextField" binding="tbSrcPassword">
-        <constraints>
-          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
-            <preferred-size width="150" height="-1"/>
-          </grid>
-          <gridbag weightx="0.0" weighty="0.0"/>
-        </constraints>
-        <properties/>
-      </component>
-      <component id="abbf9" class="javax.swing.JTextField" binding="textField1" default-binding="true">
-        <constraints>
-          <grid row="5" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
-            <preferred-size width="150" height="-1"/>
-          </grid>
-          <gridbag weightx="0.0" weighty="0.0"/>
-        </constraints>
-        <properties/>
-      </component>
       <component id="bb4f0" class="javax.swing.JTextField" binding="tbDstServer">
         <constraints>
           <grid row="8" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
@@ -170,7 +158,9 @@
           </grid>
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
-        <properties/>
+        <properties>
+          <text value="localhost"/>
+        </properties>
       </component>
       <component id="45303" class="javax.swing.JTextField" binding="tbDstDb">
         <constraints>
@@ -179,7 +169,9 @@
           </grid>
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
-        <properties/>
+        <properties>
+          <text value="ZenPlanner-CI"/>
+        </properties>
       </component>
       <component id="419ee" class="javax.swing.JTextField" binding="tbDstUsername">
         <constraints>
@@ -188,16 +180,9 @@
           </grid>
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
-        <properties/>
-      </component>
-      <component id="6d916" class="javax.swing.JTextField" binding="tbDstPassword">
-        <constraints>
-          <grid row="11" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
-            <preferred-size width="150" height="-1"/>
-          </grid>
-          <gridbag weightx="0.0" weighty="0.0"/>
-        </constraints>
-        <properties/>
+        <properties>
+          <text value="zenwebdev"/>
+        </properties>
       </component>
       <vspacer id="6ad30">
         <constraints>
@@ -212,13 +197,46 @@
         </constraints>
         <properties/>
       </component>
-      <component id="655d7" class="javax.swing.JButton" binding="tbnGo">
+      <component id="655d7" class="javax.swing.JButton" binding="btnGo">
         <constraints>
           <grid row="14" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
           <gridbag top="20" left="100" bottom="20" right="100" weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="Syncronize"/>
+          <text value="Synchronize"/>
+        </properties>
+      </component>
+      <component id="c7e3a" class="javax.swing.JPasswordField" binding="tbDstPassword">
+        <constraints>
+          <grid row="11" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="Enterprise!"/>
+        </properties>
+      </component>
+      <component id="fbeab" class="javax.swing.JPasswordField" binding="tbSrcPassword">
+        <constraints>
+          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="Enterprise!"/>
+        </properties>
+      </component>
+      <component id="c893b" class="javax.swing.JTextField" binding="tbPartitionId">
+        <constraints>
+          <grid row="5" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="B5E3A299-A135-E1F7-4974-B29ACA97B642"/>
         </properties>
       </component>
     </children>

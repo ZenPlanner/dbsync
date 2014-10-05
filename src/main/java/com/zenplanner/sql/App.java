@@ -23,7 +23,8 @@ public class App {
     private static void sync(String srcCon, String dstCon, String filterValue) throws Exception {
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                DbComparator.Syncronize(scon, dcon, filterValue);
+                DbComparator comp = new DbComparator();
+                comp.synchronize(scon, dcon, filterValue);
             }
         }
     }
