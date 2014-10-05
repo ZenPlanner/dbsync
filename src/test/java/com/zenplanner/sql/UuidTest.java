@@ -31,7 +31,7 @@ public class UuidTest extends TestCase {
 
     public void testApp() throws Exception {
         // Get 100 random UUIDs sorted by SQL
-        List<Comparable<?>> sqlList = new ArrayList<>();
+        List<UUID> sqlList = new ArrayList<>();
         Class.forName("net.sourceforge.jtds.jdbc.Driver");
         String conStr = "jdbc:jtds:sqlserver://localhost:1433/ZenPlanner-Development;user=zenwebdev;password=Enterprise!";
         try (Connection con = DriverManager.getConnection(conStr)) {
@@ -48,18 +48,14 @@ public class UuidTest extends TestCase {
         }
 
         // Clone the list and sort with Java
-        List<Comparable<?>> javaList = sqlList.stream().sorted().collect(Collectors.toList());
+        List<UUID> javaList = sqlList.stream().sorted().collect(Collectors.toList());
 
         // Test for correct order
-        boolean eq = true;
         for(int i = 0; i < javaList.size(); i++) {
-            Comparable sqlId = sqlList.get(i);
-            Comparable javaId = javaList.get(i);
-            if(sqlId.compareTo(javaId) != 0) {
-                eq = false;
-            }
+            Comparable sqlUuid = sqlList.get(i);
+            Comparable javaUuid = javaList.get(i);
+            Assert.assertEquals(sqlUuid, javaUuid);
         }
-        Assert.assertTrue(eq);
     }
 
     private UUID byteArrayToUuid(byte[] bytes) {
