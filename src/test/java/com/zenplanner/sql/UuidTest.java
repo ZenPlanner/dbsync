@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 public class UuidTest extends TestCase {
 
-    private static final int count = 100;
+    private static final int count = 10000;
 
     public UuidTest(String testName) {
         super(testName);
@@ -35,13 +35,16 @@ public class UuidTest extends TestCase {
         Class.forName("net.sourceforge.jtds.jdbc.Driver");
         String conStr = "jdbc:jtds:sqlserver://localhost:1433/ZenPlanner-Development;user=zenwebdev;password=Enterprise!";
         try (Connection con = DriverManager.getConnection(conStr)) {
-            try(Statement stmt = con.createStatement()) {
+            try (Statement stmt = con.createStatement()) {
                 String sql = String.format("select top %s NEWID() as UUID from sys.sysobjects order by UUID;", count);
-                try(ResultSet rs = stmt.executeQuery(sql)) {
-                    while(rs.next()) {
+                try (ResultSet rs = stmt.executeQuery(sql)) {
+                    while (rs.next()) {
                         byte[] bytes = rs.getBytes(1);
-                        UUID uuid = byteArrayToUuid(bytes);
-                        sqlList.add(uuid);
+                        String str = rs.getString(1);
+                        UUID strUuid = UUID.fromString(str);
+                        UUID binUuid = byteArrayToUuid(bytes);
+                        Assert.assertEquals(strUuid, binUuid);
+                        sqlList.add(binUuid);
                     }
                 }
             }
@@ -51,45 +54,59 @@ public class UuidTest extends TestCase {
         List<UUID> javaList = sqlList.stream().sorted().collect(Collectors.toList());
 
         // Test for correct order
-        for(int i = 0; i < javaList.size(); i++) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < javaList.size(); i++) {
             Comparable sqlUuid = sqlList.get(i);
             Comparable javaUuid = javaList.get(i);
-            Assert.assertEquals(sqlUuid, javaUuid);
+            sb.append(String.format("%s %s\n", sqlUuid, javaUuid));
         }
+        String res = sb.toString();
+        System.out.println(res);
     }
 
     private UUID byteArrayToUuid(byte[] bytes) {
-        if(bytes.length != 16) {
+        if (bytes.length != 16) {
             throw new RuntimeException("Invalid UUID bytes!");
         }
-        byte[] time_low = Arrays.copyOfRange(bytes, 0, 4);
-        ArrayUtils.reverse(time_low);
-        byte[] time_mid = Arrays.copyOfRange(bytes, 4, 6);
-        ArrayUtils.reverse(time_mid);
-        byte[] time_hi = Arrays.copyOfRange(bytes, 6, 8); // actually time_hi + version
-        ArrayUtils.reverse(time_hi);
-        byte[] node = Arrays.copyOfRange(bytes, 8, 16); // actually variant + clock_seq + node
 
+        // Get hi
+        byte[] time_low = Arrays.copyOfRange(bytes, 0, 4);
+        byte[] time_mid = Arrays.copyOfRange(bytes, 4, 6);
+        byte[] time_hi = Arrays.copyOfRange(bytes, 6, 8); // actually time_hi + version
+
+        // Get low
+        byte[] clock_seq = Arrays.copyOfRange(bytes, 8, 10); // actually variant + clock_seq
+        byte[] node = Arrays.copyOfRange(bytes, 10, 16); // node
+
+        // Transform
+        ArrayUtils.reverse(time_low);
+        ArrayUtils.reverse(time_mid);
+        ArrayUtils.reverse(time_hi);
+
+        // Rebuild
         ByteBuffer bb = ByteBuffer.allocate(16);
         bb.put(time_low);
         bb.put(time_mid);
         bb.put(time_hi);
+        bb.put(clock_seq);
         bb.put(node);
 
+        // Grab longs
         bb.rewind();
         long hi = bb.getLong();
         long low = bb.getLong();
 
+        // Construct
         UUID uuid = new UUID(hi, low);
         return uuid;
     }
 
     private String addDashes(String hex) {
         return String.format("%s-%s-%s-%s-%s",
-                hex.substring(0,8),
-                hex.substring(8,12),
-                hex.substring(12,16),
-                hex.substring(16,20),
-                hex.substring(20,32));
+                hex.substring(0, 8),
+                hex.substring(8, 12),
+                hex.substring(12, 16),
+                hex.substring(16, 20),
+                hex.substring(20, 32));
     }
 }
