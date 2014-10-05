@@ -19,9 +19,12 @@ Done
 * Delete
 * Update
 
+In progress
+-----------
+* Swing UI
+
 TODO
 ----
-* Swing UI
 * Store settings in config file
 * Performance testing
 * Refactor and test

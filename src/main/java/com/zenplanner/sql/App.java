@@ -10,13 +10,17 @@ public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) throws Exception {
-        String filterValue = args[0];
-        String srcCon = args[1];
-        String dstCon = args[2];
-
         Class.forName("net.sourceforge.jtds.jdbc.Driver");
 
-        // Get tables and columns
+        if(args.length < 3) {
+            FormMain frm = new FormMain();
+            frm.setVisible(true);
+        } else {
+            sync(args[0], args[1], args[2]);
+        }
+    }
+
+    private static void sync(String srcCon, String dstCon, String filterValue) throws Exception {
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
                 DbComparator.Syncronize(scon, dcon, filterValue);
