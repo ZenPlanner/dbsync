@@ -219,6 +219,9 @@ public class Table extends TreeMap<String, Column> {
         if(val instanceof String) {
             return val;
         }
+        if(val instanceof Long) {
+            return val;
+        }
         throw new RuntimeException("Unknown type: " + val.getClass().getName());
     }
 
