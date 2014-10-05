@@ -9,10 +9,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class UuidTest extends TestCase {
@@ -36,8 +33,14 @@ public class UuidTest extends TestCase {
             try(Statement stmt = con.createStatement()) {
                 String sql = String.format("select top %s NEWID() as UUID from sys.sysobjects order by UUID;", count);
                 try(ResultSet rs = stmt.executeQuery(sql)) {
+                    String type = rs.getMetaData().getColumnTypeName(1);
                     while(rs.next()) {
-                        sqlList.add((Comparable<?>)rs.getObject("UUID"));
+                        String str = rs.getString(1);
+                        byte[] bytes = rs.getBytes(1);
+                        UUID byteUuid = UUID.nameUUIDFromBytes(bytes);
+                        UUID strUuid = UUID.fromString(str);
+                        Assert.assertEquals(byteUuid, strUuid);
+                        sqlList.add(byteUuid);
                     }
                 }
             }
