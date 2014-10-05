@@ -56,20 +56,21 @@ public class UuidTest extends TestCase {
         }
 
         // Clone the list and sort with Java
-        List<UUID> javaList = sqlList.stream().sorted().collect(Collectors.toList());
+        List<UUID> javaList = sqlList.stream().sorted(UuidTest::sqlUuidCompare).collect(Collectors.toList());
 
         // Test for correct order
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < javaList.size(); i++) {
             Comparable sqlUuid = sqlList.get(i);
             Comparable javaUuid = javaList.get(i);
+            Assert.assertEquals(sqlUuid, javaUuid);
             sb.append(String.format("%s %s\n", sqlUuid, javaUuid));
         }
         String res = sb.toString();
         System.out.println(res);
     }
 
-    private byte[] uuidToByteArray(UUID uuid) {
+    private static byte[] uuidToByteArray(UUID uuid) {
 
         // Turn into byte array
         ByteBuffer bb = ByteBuffer.allocate(16);
@@ -88,7 +89,7 @@ public class UuidTest extends TestCase {
         return bytes;
     }
 
-    private UUID byteArrayToUuid(byte[] bytes) {
+    private static UUID byteArrayToUuid(byte[] bytes) {
         ByteBuffer bb = transformUuid(bytes);
         long hi = bb.getLong();
         long low = bb.getLong();
@@ -96,7 +97,24 @@ public class UuidTest extends TestCase {
         return uuid;
     }
 
-    private ByteBuffer transformUuid(byte[] bytes) {
+    private static int sqlUuidCompare(UUID leftUuid, UUID rightUuid) {
+        byte[] leftBytes = uuidToByteArray(leftUuid);
+        byte[] rightBytes = uuidToByteArray(rightUuid);
+
+        // Compare node
+        byte[] leftNode = Arrays.copyOfRange(leftBytes, 10, 16); // node
+        byte[] rightNode = Arrays.copyOfRange(rightBytes, 10, 16); // node
+        for(int i = 10; i < 16; i++) {
+            int val = (leftBytes[i] & 0xFF) - (rightBytes[i] & 0xFF);
+            if(val != 0) {
+                return val;
+            }
+        }
+
+        throw new RuntimeException("Comparison beyond node not implemented!");
+    }
+
+    private static ByteBuffer transformUuid(byte[] bytes) {
         if (bytes.length != 16) {
             throw new RuntimeException("Invalid UUID bytes!");
         }
@@ -128,7 +146,7 @@ public class UuidTest extends TestCase {
         return bb;
     }
 
-    private String addDashes(String hex) {
+    private static String addDashes(String hex) {
         return String.format("%s-%s-%s-%s-%s",
                 hex.substring(0, 8),
                 hex.substring(8, 12),
