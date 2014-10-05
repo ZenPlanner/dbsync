@@ -31,6 +31,15 @@ public class UuidTest extends TestCase {
     }
 
     public void testApp() throws Exception {
+        for(int i = 0; i < 16; i++) {
+            byte[] bytes = new byte[16];
+            for(int b = 0; b < 256; b++) {
+                bytes[i] = (byte)b;
+                UUID original = byteArrayToUuid(bytes);
+                System.out.println(original);
+            }
+        }
+
         // Get 100 random UUIDs sorted by SQL
         List<UUID> sqlList = new ArrayList<>();
         Class.forName("net.sourceforge.jtds.jdbc.Driver");
