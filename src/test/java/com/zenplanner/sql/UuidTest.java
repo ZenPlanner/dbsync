@@ -1,10 +1,12 @@
 package com.zenplanner.sql;
 
+import com.sun.org.apache.xerces.internal.impl.dv.util.HexBin;
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -37,8 +39,13 @@ public class UuidTest extends TestCase {
                     while(rs.next()) {
                         String str = rs.getString(1);
                         byte[] bytes = rs.getBytes(1);
+                        String text = HexBin.encode(bytes);
                         UUID byteUuid = UUID.nameUUIDFromBytes(bytes);
                         UUID strUuid = UUID.fromString(str);
+                        ByteBuffer bb = ByteBuffer.wrap(bytes);
+                        long firstLong = bb.getLong();
+                        long secondLong = bb.getLong();
+                        UUID bbUuid = new UUID(firstLong, secondLong);
                         Assert.assertEquals(byteUuid, strUuid);
                         sqlList.add(byteUuid);
                     }
