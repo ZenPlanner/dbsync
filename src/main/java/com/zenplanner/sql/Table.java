@@ -200,13 +200,25 @@ public class Table extends TreeMap<String, Column> {
         try {
             PreparedStatement stmt = con.prepareStatement(sql);
             for (int i = 0; i < parms.size(); i++) {
-                stmt.setObject(i + 1, parms.get(i));
+                Object javaVal = parms.get(i);
+                Object sqlVal = javaToSql(javaVal);
+                stmt.setObject(i + 1, sqlVal);
             }
             return stmt;
         } catch (Exception ex) {
             throw new RuntimeException("Error creating select query!", ex);
         }
     }
+    public static Object javaToSql(Object val) {
+        if(val == null) {
+            return null;
+        }
+        if(val instanceof UUID) {
+            return UuidUtil.uuidToByteArray(((UUID)val));
+        }
+        throw new RuntimeException("Unknown type: " + val.getClass().getName());
+    }
+
 
     public void deleteRows(Connection dcon, Set<Key> keys) throws Exception {
         List<Column> pk = getPk();
