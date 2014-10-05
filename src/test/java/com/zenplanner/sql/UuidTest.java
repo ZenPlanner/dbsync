@@ -42,10 +42,18 @@ public class UuidTest extends TestCase {
                         String text = HexBin.encode(bytes);
                         UUID byteUuid = UUID.nameUUIDFromBytes(bytes);
                         UUID strUuid = UUID.fromString(str);
+
                         ByteBuffer bb = ByteBuffer.wrap(bytes);
                         long firstLong = bb.getLong();
                         long secondLong = bb.getLong();
                         UUID bbUuid = new UUID(firstLong, secondLong);
+
+                        byte[] buff = ByteBuffer.allocate(16)
+                                .putLong(strUuid.getMostSignificantBits())
+                                .putLong(strUuid.getLeastSignificantBits())
+                                .array();
+                        String hexStr = addDashes(HexBin.encode(buff));
+
                         Assert.assertEquals(byteUuid, strUuid);
                         sqlList.add(byteUuid);
                     }
@@ -66,5 +74,14 @@ public class UuidTest extends TestCase {
             }
         }
         Assert.assertTrue(eq);
+    }
+
+    private String addDashes(String hex) {
+        return String.format("%s-%s-%s-%s-%s",
+                hex.substring(0,8),
+                hex.substring(8,12),
+                hex.substring(12,16),
+                hex.substring(16,20),
+                hex.substring(20,32));
     }
 }
