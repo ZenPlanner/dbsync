@@ -8,6 +8,12 @@ import java.util.UUID;
 
 public class UuidUtil {
 
+    /**
+     * Converts a Java UUID into a byte array as stored in SQL
+     *
+     * @param uuid The UUID to convert
+     * @return The resulting byte array
+     */
     public static byte[] uuidToByteArray(UUID uuid) {
 
         // Turn into byte array
@@ -27,6 +33,12 @@ public class UuidUtil {
         return bytes;
     }
 
+    /**
+     * Converts a byte array as stored in SQL into a Java UUID
+     *
+     * @param bytes The bytes to convert
+     * @return A UUID
+     */
     public static UUID byteArrayToUuid(byte[] bytes) {
         ByteBuffer bb = transformUuid(bytes);
         long hi = bb.getLong();
@@ -35,6 +47,13 @@ public class UuidUtil {
         return uuid;
     }
 
+    /**
+     * Compares two UUIDs with the same sort ordering as T-SQL
+     *
+     * @param leftUuid The left UUID to compare
+     * @param rightUuid The right UUID to compare
+     * @return An integer that is either positive, negative, or zero
+     */
     public static int sqlUuidCompare(UUID leftUuid, UUID rightUuid) {
         byte[] leftBytes = uuidToByteArray(leftUuid);
         byte[] rightBytes = uuidToByteArray(rightUuid);
@@ -82,6 +101,13 @@ public class UuidUtil {
         return 0; // They are equal!
     }
 
+    /**
+     * Performs byte inversion logic to convert between how UUIDs are represented internally, and how they are stored
+     * as byte arrays in SQL
+     *
+     * @param bytes The bytes to transform
+     * @return A ByteBuffer holding the transformed bytes
+     */
     public static ByteBuffer transformUuid(byte[] bytes) {
         if (bytes.length != 16) {
             throw new RuntimeException("Invalid UUID bytes!");
@@ -114,6 +140,11 @@ public class UuidUtil {
         return bb;
     }
 
+    /**
+     * Take a hex formatted string and make it look like a UUID
+     * @param hex The hex string to format
+     * @return A text representation of a UUID
+     */
     public static String addDashes(String hex) {
         return String.format("%s-%s-%s-%s-%s",
                 hex.substring(0, 8),

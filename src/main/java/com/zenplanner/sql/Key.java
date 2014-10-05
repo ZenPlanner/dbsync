@@ -52,6 +52,7 @@ public class Key extends ArrayList<Comparable> implements Comparable {
             }
             int val;
             if(thisVal instanceof UUID && otherVal instanceof UUID) {
+                // Hack to match the way T-SQL sorts UUIDs
                 val = UuidUtil.sqlUuidCompare((UUID)thisVal, (UUID)otherVal);
             } else {
                 val = thisVal.compareTo(otherVal);
