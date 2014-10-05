@@ -65,6 +65,8 @@ public class DbComparator {
         } catch (Exception ex) {
             throw new RuntimeException("Error comparing databases!", ex);
         }
+        currentTable.incrementAndGet();
+        fireProgress();
     }
 
     /**

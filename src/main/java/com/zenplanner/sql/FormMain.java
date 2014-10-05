@@ -2,9 +2,7 @@ package com.zenplanner.sql;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
@@ -35,7 +33,19 @@ public class FormMain extends JFrame {
         comp.addListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                FormMain.this.dispatchEvent(e);
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(comp.getCurrentTable() > comp.getTableCount()) {
+                            JOptionPane.showMessageDialog(null, "Synchronization complete!");
+                            btnGo.setEnabled(true);
+                            pbMain.setValue(0);
+                        } else {
+                            pbMain.setMaximum(comp.getTableCount());
+                            pbMain.setValue(comp.getCurrentTable());
+                        }
+                    }
+                });
             }
         });
 
@@ -63,21 +73,6 @@ public class FormMain extends JFrame {
                 }).start();
             }
         });
-    }
-
-    @Override
-    protected void processEvent(AWTEvent e) {
-        super.processEvent(e);
-
-        if(e instanceof ActionEvent == false) {
-            return;
-        }
-        ActionEvent action = (ActionEvent)e;
-        if(action.getSource() != comp) {
-            return;
-        }
-        pbMain.setMaximum(comp.getTableCount());
-        pbMain.setValue(comp.getCurrentTable());
     }
 
 
