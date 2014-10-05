@@ -18,10 +18,10 @@ Done
 * Sync everything from non-partitionId-having tables
 * Delete
 * Update
+* Swing UI
 
 In progress
 -----------
-* Swing UI
 
 TODO
 ----
