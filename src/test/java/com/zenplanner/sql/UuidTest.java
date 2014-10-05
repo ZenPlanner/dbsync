@@ -76,7 +76,7 @@ public class UuidTest extends TestCase {
         for (int i = 0; i < javaList.size(); i++) {
             Comparable sqlUuid = sqlList.get(i);
             Comparable javaUuid = javaList.get(i);
-            //Assert.assertEquals(sqlUuid, javaUuid);
+            Assert.assertEquals(sqlUuid, javaUuid);
             sb.append(String.format("%s %s\n", sqlUuid, javaUuid));
         }
         String res = sb.toString();
@@ -115,8 +115,6 @@ public class UuidTest extends TestCase {
         byte[] rightBytes = uuidToByteArray(rightUuid);
 
         // Compare node
-        byte[] leftNode = Arrays.copyOfRange(leftBytes, 10, 16); // node
-        byte[] rightNode = Arrays.copyOfRange(rightBytes, 10, 16); // node
         for(int i = 10; i < 16; i++) {
             int val = (leftBytes[i] & 0xFF) - (rightBytes[i] & 0xFF);
             if(val != 0) {
@@ -124,7 +122,39 @@ public class UuidTest extends TestCase {
             }
         }
 
-        throw new RuntimeException("Comparison beyond node not implemented!");
+        // Compare clock_seq
+        for(int i = 8; i < 10; i++) {
+            int val = (leftBytes[i] & 0xFF) - (rightBytes[i] & 0xFF);
+            if(val != 0) {
+                return val;
+            }
+        }
+
+        // Compare time_hi
+        for(int i = 6; i < 8; i++) {
+            int val = (leftBytes[i] & 0xFF) - (rightBytes[i] & 0xFF);
+            if(val != 0) {
+                return val;
+            }
+        }
+
+        // Compare time_mid
+        for(int i = 4; i < 6; i++) {
+            int val = (leftBytes[i] & 0xFF) - (rightBytes[i] & 0xFF);
+            if(val != 0) {
+                return val;
+            }
+        }
+
+        // Compare time_low
+        for(int i = 0; i < 4; i++) {
+            int val = (leftBytes[i] & 0xFF) - (rightBytes[i] & 0xFF);
+            if(val != 0) {
+                return val;
+            }
+        }
+
+        return 0; // They are equal!
     }
 
     private static ByteBuffer transformUuid(byte[] bytes) {
