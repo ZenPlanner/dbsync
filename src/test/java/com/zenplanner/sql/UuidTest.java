@@ -1,8 +1,5 @@
 package com.zenplanner.sql;
 
-import com.sun.deploy.util.ArrayUtil;
-import com.sun.javafx.image.ByteToBytePixelConverter;
-import com.sun.org.apache.xerces.internal.impl.dv.util.HexBin;
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -14,7 +11,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class UuidTest extends TestCase {
@@ -38,14 +38,10 @@ public class UuidTest extends TestCase {
             try(Statement stmt = con.createStatement()) {
                 String sql = String.format("select top %s NEWID() as UUID from sys.sysobjects order by UUID;", count);
                 try(ResultSet rs = stmt.executeQuery(sql)) {
-                    String type = rs.getMetaData().getColumnTypeName(1);
                     while(rs.next()) {
-                        String str = rs.getString(1);
                         byte[] bytes = rs.getBytes(1);
-                        UUID strUuid = UUID.fromString(str);
-                        UUID myUuid = byteArrayToUuid(bytes);
-                        Assert.assertEquals(myUuid, strUuid);
-                        sqlList.add(myUuid);
+                        UUID uuid = byteArrayToUuid(bytes);
+                        sqlList.add(uuid);
                     }
                 }
             }
