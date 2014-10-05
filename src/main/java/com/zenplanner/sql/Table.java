@@ -216,6 +216,9 @@ public class Table extends TreeMap<String, Column> {
         if(val instanceof UUID) {
             return UuidUtil.uuidToByteArray(((UUID)val));
         }
+        if(val instanceof String) {
+            return val;
+        }
         throw new RuntimeException("Unknown type: " + val.getClass().getName());
     }
 

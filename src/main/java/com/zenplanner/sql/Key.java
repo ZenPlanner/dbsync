@@ -75,7 +75,7 @@ public class Key extends ArrayList<Comparable> implements Comparable {
             return 0;
         }
         if(left == null) {
-            return -1;
+            return 1; // We get back null when the RS is past its end, so we treat null as greater than everything else
         }
         return left.compareTo(right);
     }
