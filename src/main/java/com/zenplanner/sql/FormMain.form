@@ -24,7 +24,7 @@
           <gridbag weightx="1.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="localhost"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="43904" class="javax.swing.JLabel">
@@ -44,7 +44,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="ZenPlanner-Development"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="703d0" class="javax.swing.JLabel">
@@ -76,7 +76,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="zenwebdev"/>
+          <text value=""/>
         </properties>
       </component>
       <vspacer id="d7f28">
@@ -150,7 +150,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="localhost"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="45303" class="javax.swing.JTextField" binding="tbDstDb">
@@ -161,7 +161,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="ZenPlanner-CI"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="419ee" class="javax.swing.JTextField" binding="tbDstUsername">
@@ -172,7 +172,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="zenwebdev"/>
+          <text value=""/>
         </properties>
       </component>
       <vspacer id="6ad30">
@@ -205,7 +205,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="Enterprise!"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="fbeab" class="javax.swing.JPasswordField" binding="tbSrcPassword">
@@ -216,7 +216,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="Enterprise!"/>
+          <text value=""/>
         </properties>
       </component>
       <vspacer id="b0764">
@@ -262,7 +262,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="PartitionId"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="ecf1" class="javax.swing.JTextField" binding="tbFilterValue">
@@ -273,7 +273,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text value="B5E3A299-A135-E1F7-4974-B29ACA97B642"/>
+          <text value=""/>
         </properties>
       </component>
     </children>

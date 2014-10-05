@@ -20,13 +20,13 @@ Done
 * Update
 * Swing UI
 * Filter on any number and type of fields
+* Store settings in config file
 
 In progress
 -----------
 
 TODO
 ----
-* Store settings in config file
 * Performance testing
 * Refactor and test
 
