@@ -98,20 +98,14 @@ public class Table extends TreeMap<String, Column> {
      */
     public String writeHashedQuery(String filterCol) {
         List<String> colNames = new ArrayList<>();
-        List<String> selectPk = new ArrayList<>();
-        List<String> sortPk = new ArrayList<>();
-        for (Column col : values()) {
-            if (col.isPrimaryKey()) {
-                // TODO: Lexagraphical sorting is a horrible performance killer! Figure out UUID sort order on SQL server and match it in Key.compare()
-                selectPk.add(String.format("convert(varchar(max),[%s]) as [%s]", col.getColumnName(), col.getColumnName()));
-                sortPk.add(String.format("convert(varchar(max),[%s])", col.getColumnName()));
-            }
+        List<String> pk = new ArrayList<>();
+        for (Column col : getPk()) {
+            pk.add(String.format("[%s]", col.getColumnName()));
             colNames.add(col.getSelect());
         }
         String hashNames = Joiner.on("+\n\t\t").join(colNames);
-        String selectPkClause = Joiner.on(",").join(selectPk);
-        String orderClause = Joiner.on(",").join(sortPk);
-        String selectClause = selectPkClause + ",\n\tHASHBYTES('md5',\n\t\t" + hashNames + "\n\t) as [Hash]";
+        String orderClause = Joiner.on(",").join(pk);
+        String selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + hashNames + "\n\t) as [Hash]";
         String sql = String.format("select\n\t%s\nfrom [%s]\n", selectClause, getName());
         if(hasColumn(filterCol)) {
             sql += String.format("where [%s]=?\n", filterCol);
@@ -134,7 +128,7 @@ public class Table extends TreeMap<String, Column> {
         }
         for (Column col : values()) {
             if (col.isPrimaryKey()) {
-                Comparable<?> val = rs.getString(col.getColumnName());
+                Comparable<?> val = col.getValue(rs);
                 key.add(val);
             }
         }

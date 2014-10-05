@@ -1,14 +1,11 @@
 package com.zenplanner.sql;
 
 import com.google.common.base.Joiner;
-import com.sun.javafx.image.ByteToBytePixelConverter;
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
-import org.apache.commons.lang3.ArrayUtils;
 
-import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;

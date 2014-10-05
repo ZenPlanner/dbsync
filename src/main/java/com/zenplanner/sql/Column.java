@@ -1,7 +1,9 @@
 package com.zenplanner.sql;
 
+import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 public class Column {
     private static final List<String> smallTypes = Arrays.asList(new String[]{
@@ -29,6 +31,24 @@ public class Column {
                     "else left(convert(nvarchar(max), [%s]), 4000) end)", getColumnName(), getColumnName());
         }
         throw new RuntimeException("Unknown type: " + getDataType());
+    }
+
+    public Comparable<?> getValue(ResultSet rs) throws Exception {
+        if("bigint".equals(dataType)) {
+            return rs.getLong(columnName);
+        }
+        if("nchar".equals(dataType)) {
+            return rs.getString(columnName);
+        }
+        if("varchar".equals(dataType)) {
+            return rs.getString(columnName);
+        }
+        if("uniqueidentifier".equals(dataType)) {
+            byte[] bytes = rs.getBytes(columnName);
+            UUID uuid = UuidUtil.byteArrayToUuid(bytes);
+            return uuid;
+        }
+        throw new RuntimeException("Type not recognized: " + dataType);
     }
 
     public String getColumnName() {
