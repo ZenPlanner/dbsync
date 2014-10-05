@@ -96,7 +96,7 @@ public class Table extends TreeMap<String, Column> {
     /**
      * @return A magical query that returns the primary key and a hash of the row
      */
-    public String writeHashedQuery(String filterCol) {
+    public String writeHashedQuery(Map<String,Object> filters) {
         List<String> colNames = new ArrayList<>();
         List<String> pk = new ArrayList<>();
         for (Column col : getPk()) {
@@ -107,11 +107,21 @@ public class Table extends TreeMap<String, Column> {
         String orderClause = Joiner.on(",").join(pk);
         String selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + hashNames + "\n\t) as [Hash]";
         String sql = String.format("select\n\t%s\nfrom [%s]\n", selectClause, getName());
-        if(hasColumn(filterCol)) {
-            sql += String.format("where [%s]=?\n", filterCol);
+
+        // Filter
+        if(hasAllColumns(filters.keySet())) {
+            sql += "where [" + Joiner.on("]=?\n\tand [").join(filters.keySet()) + "]=?";
         }
+
         sql += String.format("order by %s", orderClause);
         return sql;
+    }
+
+    public boolean hasAllColumns(Set<String> colNames) {
+        Set<String> filterCols = new HashSet<>();
+        filterCols.addAll(keySet());
+        filterCols.retainAll(colNames);
+        return filterCols.size() == colNames.size();
     }
 
     /**

@@ -19,6 +19,7 @@ Done
 * Delete
 * Update
 * Swing UI
+* Filter on any number and type of fields
 
 In progress
 -----------
@@ -28,7 +29,6 @@ TODO
 * Store settings in config file
 * Performance testing
 * Refactor and test
-* Generalize out partitionId - just use a map of keys & values (e.g. ParitionId='BD140B4B-FFCA-2E3A-5FA0-BCBA3E2678B2' from the command line)
 
 Bugs
 ----

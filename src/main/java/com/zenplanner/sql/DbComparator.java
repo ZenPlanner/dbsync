@@ -14,8 +14,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class DbComparator {
 
-    private static final String filterCol = "partitionId"; // TODO: Parameterize
-
     private final AtomicInteger tableCount = new AtomicInteger();
     private final AtomicInteger currentTable = new AtomicInteger();
     private final Set<ActionListener> listeners = Collections.synchronizedSet(new HashSet<ActionListener>());
@@ -35,7 +33,7 @@ public class DbComparator {
      * @param dcon The destination connection
      * @param filterValue A value with which to filter partition data
      */
-    public void synchronize(Connection scon, Connection dcon, String filterValue) {
+    public void synchronize(Connection scon, Connection dcon, Map<String,Object> filters) {
         try {
             // Get the intersection of the tables
             Map<String, Table> srcTables = filterTables(getTables(scon));
@@ -53,7 +51,7 @@ public class DbComparator {
                     Table srcTable = srcTables.get(tableName);
                     Table dstTable = dstTables.get(tableName);
                     System.out.println("Comparing table: " + srcTable.getName());
-                    syncTables(scon, dcon, srcTable, dstTable, filterValue);
+                    syncTables(scon, dcon, srcTable, dstTable, filters);
                     currentTable.incrementAndGet();
                     fireProgress();
                 }
@@ -120,19 +118,25 @@ public class DbComparator {
      * @param dcon        The destination connection
      * @param srcTable    The source table
      * @param dstTable    The destination table
-     * @param filterValue A partitionId
      * @throws Exception
      */
     private static void syncTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
-                                   String filterValue) throws Exception {
+                                   Map<String,Object> filters) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
-        String sql = lcd.writeHashedQuery(filterCol);
+        String sql = lcd.writeHashedQuery(filters);
         //int i = 0; // TODO: Threading and progress indicator
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
-            if (lcd.hasColumn(filterCol)) {
-                stmt.setObject(1, filterValue);
-                dtmt.setObject(1, filterValue);
+            // Set filter parameters
+            if(lcd.hasAllColumns(filters.keySet())) {
+                int i = 1;
+                for(Object val : filters.values()) {
+                    stmt.setObject(i, val);
+                    dtmt.setObject(i, val);
+                    i++;
+                }
             }
+
+            // Make changes
             try (ResultSet srs = stmt.executeQuery(); ResultSet drs = dtmt.executeQuery()) {
                 srs.next();
                 drs.next();

@@ -5,6 +5,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FormMain extends JFrame {
     private JPanel panel1;
@@ -18,7 +20,8 @@ public class FormMain extends JFrame {
     private JProgressBar pbMain;
     private JButton btnGo;
     private JPasswordField tbDstPassword;
-    private JTextField tbPartitionId;
+    private JTextField tbFilterColumn;
+    private JTextField tbFilterValue;
 
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
     private final DbComparator comp = new DbComparator();
@@ -57,13 +60,16 @@ public class FormMain extends JFrame {
                     @Override
                     public void run() {
                         try {
+                            Map<String,Object> filters = new HashMap<String, Object>();
+                            filters.put(tbFilterColumn.getText(), tbFilterValue.getText());
+
                             String srcCon = String.format(conTemplate, tbSrcServer.getText(), tbSrcDb.getText(),
                                     tbSrcUsername.getText(), tbSrcPassword.getText());
                             String dstCon = String.format(conTemplate, tbDstServer.getText(), tbDstDb.getText(),
                                     tbDstUsername.getText(), tbDstPassword.getText());
                             try (Connection scon = DriverManager.getConnection(srcCon)) {
                                 try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                                    comp.synchronize(scon, dcon, tbPartitionId.getText());
+                                    comp.synchronize(scon, dcon, filters);
                                 }
                             }
                         } catch (Exception ex) {
