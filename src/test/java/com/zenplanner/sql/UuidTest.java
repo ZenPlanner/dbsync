@@ -1,5 +1,6 @@
 package com.zenplanner.sql;
 
+import com.sun.javafx.image.ByteToBytePixelConverter;
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -44,6 +45,10 @@ public class UuidTest extends TestCase {
                         UUID strUuid = UUID.fromString(str);
                         UUID binUuid = byteArrayToUuid(bytes);
                         Assert.assertEquals(strUuid, binUuid);
+
+                        byte[] out = uuidToByteArray(binUuid);
+                        Assert.assertTrue(Arrays.equals(bytes, out));
+
                         sqlList.add(binUuid);
                     }
                 }
@@ -64,7 +69,34 @@ public class UuidTest extends TestCase {
         System.out.println(res);
     }
 
+    private byte[] uuidToByteArray(UUID uuid) {
+
+        // Turn into byte array
+        ByteBuffer bb = ByteBuffer.allocate(16);
+        bb.putLong(uuid.getMostSignificantBits());
+        bb.putLong(uuid.getLeastSignificantBits());
+        bb.rewind();
+        byte[] bytes = new byte[16];
+        bb.get(bytes);
+
+        // Transform
+        bb = transformUuid(bytes);
+
+        // Turn into byte array
+        bb.get(bytes);
+
+        return bytes;
+    }
+
     private UUID byteArrayToUuid(byte[] bytes) {
+        ByteBuffer bb = transformUuid(bytes);
+        long hi = bb.getLong();
+        long low = bb.getLong();
+        UUID uuid = new UUID(hi, low);
+        return uuid;
+    }
+
+    private ByteBuffer transformUuid(byte[] bytes) {
         if (bytes.length != 16) {
             throw new RuntimeException("Invalid UUID bytes!");
         }
@@ -93,12 +125,7 @@ public class UuidTest extends TestCase {
 
         // Grab longs
         bb.rewind();
-        long hi = bb.getLong();
-        long low = bb.getLong();
-
-        // Construct
-        UUID uuid = new UUID(hi, low);
-        return uuid;
+        return bb;
     }
 
     private String addDashes(String hex) {
