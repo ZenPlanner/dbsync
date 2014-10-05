@@ -1,10 +1,13 @@
 package com.zenplanner.sql;
 
+import com.sun.deploy.util.ArrayUtil;
+import com.sun.javafx.image.ByteToBytePixelConverter;
 import com.sun.org.apache.xerces.internal.impl.dv.util.HexBin;
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.nio.ByteBuffer;
 import java.sql.Connection;
@@ -39,23 +42,10 @@ public class UuidTest extends TestCase {
                     while(rs.next()) {
                         String str = rs.getString(1);
                         byte[] bytes = rs.getBytes(1);
-                        String text = HexBin.encode(bytes);
-                        UUID byteUuid = UUID.nameUUIDFromBytes(bytes);
                         UUID strUuid = UUID.fromString(str);
-
-                        ByteBuffer bb = ByteBuffer.wrap(bytes);
-                        long firstLong = bb.getLong();
-                        long secondLong = bb.getLong();
-                        UUID bbUuid = new UUID(firstLong, secondLong);
-
-                        byte[] buff = ByteBuffer.allocate(16)
-                                .putLong(strUuid.getMostSignificantBits())
-                                .putLong(strUuid.getLeastSignificantBits())
-                                .array();
-                        String hexStr = addDashes(HexBin.encode(buff));
-
-                        Assert.assertEquals(byteUuid, strUuid);
-                        sqlList.add(byteUuid);
+                        UUID myUuid = byteArrayToUuid(bytes);
+                        Assert.assertEquals(myUuid, strUuid);
+                        sqlList.add(myUuid);
                     }
                 }
             }
@@ -74,6 +64,32 @@ public class UuidTest extends TestCase {
             }
         }
         Assert.assertTrue(eq);
+    }
+
+    private UUID byteArrayToUuid(byte[] bytes) {
+        if(bytes.length != 16) {
+            throw new RuntimeException("Invalid UUID bytes!");
+        }
+        byte[] time_low = Arrays.copyOfRange(bytes, 0, 4);
+        ArrayUtils.reverse(time_low);
+        byte[] time_mid = Arrays.copyOfRange(bytes, 4, 6);
+        ArrayUtils.reverse(time_mid);
+        byte[] time_hi = Arrays.copyOfRange(bytes, 6, 8); // actually time_hi + version
+        ArrayUtils.reverse(time_hi);
+        byte[] node = Arrays.copyOfRange(bytes, 8, 16); // actually variant + clock_seq + node
+
+        ByteBuffer bb = ByteBuffer.allocate(16);
+        bb.put(time_low);
+        bb.put(time_mid);
+        bb.put(time_hi);
+        bb.put(node);
+
+        bb.rewind();
+        long hi = bb.getLong();
+        long low = bb.getLong();
+
+        UUID uuid = new UUID(hi, low);
+        return uuid;
     }
 
     private String addDashes(String hex) {
