@@ -3,6 +3,7 @@ package com.zenplanner.sql;
 import com.google.common.base.Joiner;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class Key extends ArrayList<Comparable> implements Comparable {
 
@@ -49,7 +50,12 @@ public class Key extends ArrayList<Comparable> implements Comparable {
             if(thisVal == null) {
                 return -1;
             }
-            int val = thisVal.compareTo(otherVal);
+            int val;
+            if(thisVal instanceof UUID && otherVal instanceof UUID) {
+                val = UuidUtil.sqlUuidCompare((UUID)thisVal, (UUID)otherVal);
+            } else {
+                val = thisVal.compareTo(otherVal);
+            }
             if(val == 0) {
                 continue;
             }
