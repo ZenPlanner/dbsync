@@ -55,6 +55,7 @@ public class UuidUtil {
      * @return An integer that is either positive, negative, or zero
      */
     public static int sqlUuidCompare(UUID leftUuid, UUID rightUuid) {
+        // TODO: uuidToByteArray creates garbage! Use getMostSignificantBits() and bitwise logic to compare unboxed
         byte[] leftBytes = uuidToByteArray(leftUuid);
         byte[] rightBytes = uuidToByteArray(rightUuid);
 
