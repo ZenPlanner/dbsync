@@ -99,9 +99,11 @@ public class Table extends TreeMap<String, Column> {
     public String writeHashedQuery(Map<String,Object> filters) {
         List<String> colNames = new ArrayList<>();
         List<String> pk = new ArrayList<>();
+        for(Column col : values()) {
+            colNames.add(col.getSelect());
+        }
         for (Column col : getPk()) {
             pk.add(String.format("[%s]", col.getColumnName()));
-            colNames.add(col.getSelect());
         }
         String hashNames = Joiner.on("+\n\t\t").join(colNames);
         String orderClause = Joiner.on(",").join(pk);
