@@ -6,9 +6,7 @@ import java.awt.event.*;
 import java.io.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class FormMain extends JFrame {
     private JPanel panel1;
@@ -24,6 +22,7 @@ public class FormMain extends JFrame {
     private JPasswordField tbDstPassword;
     private JTextField tbFilterColumn;
     private JTextField tbFilterValue;
+    private JTextArea tbIgnore;
 
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
     private final DbComparator comp = new DbComparator();
@@ -76,15 +75,16 @@ public class FormMain extends JFrame {
     }
 
     private void sync() throws Exception {
-        Map<String,Object> filters = new HashMap<>();
-        filters.put(tbFilterColumn.getText(), tbFilterValue.getText());
+        Map<String,Object> filters = new HashMap<String,Object>();
+        filters.put(tbFilterColumn.getText().toLowerCase(), tbFilterValue.getText());
         String srcCon = String.format(conTemplate, tbSrcServer.getText(), tbSrcDb.getText(),
                 tbSrcUsername.getText(), tbSrcPassword.getText());
         String dstCon = String.format(conTemplate, tbDstServer.getText(), tbDstDb.getText(),
                 tbDstUsername.getText(), tbDstPassword.getText());
+        java.util.List<String> ignoreTables = Arrays.asList(tbIgnore.getText().split(","));
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                comp.synchronize(scon, dcon, filters);
+                comp.synchronize(scon, dcon, filters, ignoreTables);
             }
         }
     }
@@ -115,6 +115,8 @@ public class FormMain extends JFrame {
 
                 tbFilterColumn.setText(props.getProperty("FilterColumn"));
                 tbFilterValue.setText(props.getProperty("FilterValue"));
+
+                tbIgnore.setText(props.getProperty("IgnoreTables"));
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -136,6 +138,8 @@ public class FormMain extends JFrame {
 
         props.setProperty("FilterColumn", tbFilterColumn.getText());
         props.setProperty("FilterValue", tbFilterValue.getText());
+
+        props.setProperty("IgnoreTables", tbIgnore.getText());
 
         try(OutputStream out = new FileOutputStream( getPropFile() )) {
             props.store(out, "dbsync properties");

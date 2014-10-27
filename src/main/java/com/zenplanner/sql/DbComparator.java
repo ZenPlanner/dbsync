@@ -2,6 +2,7 @@ package com.zenplanner.sql;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
+import sun.plugin.dom.exception.InvalidStateException;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -33,7 +34,7 @@ public class DbComparator {
      * @param dcon The destination connection
      * @param filterValue A value with which to filter partition data
      */
-    public void synchronize(Connection scon, Connection dcon, Map<String,Object> filters) {
+    public void synchronize(Connection scon, Connection dcon, Map<String,Object> filters, List<String> ignoreTables) {
         try {
             // Get the intersection of the tables
             Map<String, Table> srcTables = filterTables(getTables(scon));
@@ -41,6 +42,7 @@ public class DbComparator {
             Set<String> tableNames = new HashSet<>();
             tableNames.addAll(srcTables.keySet());
             tableNames.retainAll(dstTables.keySet());
+            tableNames.removeAll(ignoreTables);
             tableCount.set(tableNames.size());
             currentTable.set(0);
 
@@ -100,7 +102,7 @@ public class DbComparator {
                     Table table = tables.get(tableName);
 
                     Column col = new Column();
-                    String colName = rs.getString("column_name");
+                    String colName = rs.getString("column_name").toLowerCase();
                     col.setColumnName(colName);
                     col.setDataType(rs.getString("data_type"));
                     col.setPrimaryKey(rs.getBoolean("primary_key"));
@@ -108,6 +110,13 @@ public class DbComparator {
                 }
             }
         }
+
+        for(Table table : tables.values()) {
+            if(table.size() == 0) {
+                throw new InvalidStateException("Table has no columns: " + table.getName());
+            }
+        }
+
         return tables;
     }
 
@@ -158,7 +167,7 @@ public class DbComparator {
                 lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE));
                 lcd.deleteRows(dcon, changes.get(ChangeType.DELETE));
             } catch (Exception ex) {
-                throw new RuntimeException("Error selecting hashed rows!", ex);
+                throw new RuntimeException("Error selecting hashed rows: " + sql, ex);
             }
         }
     }
@@ -206,6 +215,11 @@ public class DbComparator {
             }
             table.put(colName, srcTable.get(colName));
         }
+
+        if(table.size() == 0) {
+            throw new InvalidStateException("Table has no columns: " + table.getName());
+        }
+
         return table;
     }
 

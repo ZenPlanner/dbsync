@@ -281,7 +281,7 @@ public class Table extends TreeMap<String, Column> {
                         try {
                             insertStmt.executeBatch();
                         } catch (Exception ex) {
-                            throw new RuntimeException("Error inserting rows!", ex);
+                            throw new RuntimeException("Error inserting rows: " + sql, ex);
                         }
                     }
                 }

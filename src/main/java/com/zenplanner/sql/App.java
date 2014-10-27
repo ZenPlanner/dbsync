@@ -5,7 +5,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class App {
@@ -20,15 +22,16 @@ public class App {
         } else {
             Map<String, Object> filters = new HashMap<>();
             filters.put(args[2], args[3]);
-            sync(args[0], args[1], filters);
+            List<String> ignoreTables = new ArrayList<>(); // TODO: Allow command line input
+            sync(args[0], args[1], filters, ignoreTables);
         }
     }
 
-    private static void sync(String srcCon, String dstCon, Map<String, Object> filters) throws Exception {
+    private static void sync(String srcCon, String dstCon, Map<String, Object> filters, List<String> ignoreTables) throws Exception {
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
                 DbComparator comp = new DbComparator();
-                comp.synchronize(scon, dcon, filters);
+                comp.synchronize(scon, dcon, filters, ignoreTables);
             }
         }
     }
