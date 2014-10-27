@@ -30,7 +30,7 @@ public class Column {
         if (bigTypes.contains(getDataType().toLowerCase())) {
             return String.format("HASHBYTES('md5', " +
                     "case when [%s] is null then convert(varbinary,0) " +
-                    "else left(convert(nvarchar(max), [%s]), 4000) end)", getColumnName(), getColumnName());
+                    "else left(convert(nvarchar(max), [%s]), 500) end)", getColumnName(), getColumnName());
         }
         throw new RuntimeException("Unknown type: " + getDataType());
     }
