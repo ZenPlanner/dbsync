@@ -2,7 +2,6 @@ package com.zenplanner.sql;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
-import sun.plugin.dom.exception.InvalidStateException;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -113,7 +112,7 @@ public class DbComparator {
 
         for(Table table : tables.values()) {
             if(table.size() == 0) {
-                throw new InvalidStateException("Table has no columns: " + table.getName());
+                throw new IllegalStateException("Table has no columns: " + table.getName());
             }
         }
 
@@ -217,7 +216,7 @@ public class DbComparator {
         }
 
         if(table.size() == 0) {
-            throw new InvalidStateException("Table has no columns: " + table.getName());
+            throw new IllegalStateException("Table has no columns: " + table.getName());
         }
 
         return table;
