@@ -24,15 +24,23 @@ Done
 * Per row progress indicator based on select count(*)
 * Only re-enable constraints that were originally enabled
 * Filters with "or", not just "and"
+* Filter ignore tables from the count
+* Set mininum transaction isolation level
 
 In progress
 -----------
+* Multi-threading
 
 TODO
 ----
+* Insert / update / delete level progress bar
+* Tables to ignore in config file
+* AD authentication (integrated if possible)
+* Log4j
+* Reversably encrypt password in config
+* Post-build step in Jenkins (dbsync.sh, dbsync.properties, zip) 
+
 * Add obfuscation
-* Find and tune performance bottlenecks
-* Multi-threading?
 * Refactor and test
 
 Bugs
