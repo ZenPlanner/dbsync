@@ -37,7 +37,7 @@ public class FormMain extends JFrame {
         setVisible(true);
         pack();
 
-        new Timer(100, new ActionListener() {
+        Timer timer = new Timer(100, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 pbMain.setMaximum(comp.getRowCount());
@@ -45,7 +45,7 @@ public class FormMain extends JFrame {
                 lblCurrentTable.setText(comp.getCurrentTableName());
                 lblCurrentRow.setText("" + comp.getCurrentRow() + " / " + comp.getRowCount());
             }
-        }).start();
+        });
 
         comp.addListener(new ActionListener() {
             @Override
@@ -54,9 +54,12 @@ public class FormMain extends JFrame {
                     @Override
                     public void run() {
                         if(comp.getCurrentTable() > comp.getTableCount()) {
-                            JOptionPane.showMessageDialog(null, "Synchronization complete!");
+                            timer.stop();
+                            lblCurrentTable.setText("");
+                            lblCurrentRow.setText("");
                             btnGo.setEnabled(true);
                             pbMain.setValue(0);
+                            JOptionPane.showMessageDialog(null, "Synchronization complete!");
                         }
                     }
                 });
@@ -71,6 +74,7 @@ public class FormMain extends JFrame {
                     @Override
                     public void run() {
                         try {
+                            timer.start();
                             saveProps();
                             sync();
                         } catch (Exception ex) {
