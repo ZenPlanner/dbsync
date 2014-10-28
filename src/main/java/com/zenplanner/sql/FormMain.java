@@ -1,6 +1,7 @@
 package com.zenplanner.sql;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -23,6 +24,8 @@ public class FormMain extends JFrame {
     private JTextField tbFilterColumn;
     private JTextField tbFilterValue;
     private JTextArea tbIgnore;
+    private JLabel lblCurrentTable;
+    private JLabel lblCurrentRow;
 
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
     private final DbComparator comp = new DbComparator();
@@ -34,6 +37,15 @@ public class FormMain extends JFrame {
         setVisible(true);
         pack();
 
+        new Timer(100, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                pbMain.setMaximum(comp.getRowCount());
+                pbMain.setValue(comp.getCurrentRow());
+                lblCurrentRow.setText("" + comp.getCurrentRow() + " / " + comp.getRowCount());
+            }
+        }).start();
+
         comp.addListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -44,9 +56,6 @@ public class FormMain extends JFrame {
                             JOptionPane.showMessageDialog(null, "Synchronization complete!");
                             btnGo.setEnabled(true);
                             pbMain.setValue(0);
-                        } else {
-                            pbMain.setMaximum(comp.getTableCount());
-                            pbMain.setValue(comp.getCurrentTable());
                         }
                     }
                 });

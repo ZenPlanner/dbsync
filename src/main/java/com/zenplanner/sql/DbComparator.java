@@ -14,8 +14,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class DbComparator {
 
+    private final AtomicInteger rowCount = new AtomicInteger();
     private final AtomicInteger tableCount = new AtomicInteger();
     private final AtomicInteger currentTable = new AtomicInteger();
+    private final AtomicInteger currentRow = new AtomicInteger();
     private final Set<ActionListener> listeners = Collections.synchronizedSet(new HashSet<ActionListener>());
 
     public enum ChangeType {
@@ -43,7 +45,9 @@ public class DbComparator {
             tableNames.retainAll(dstTables.keySet());
             tableNames.removeAll(ignoreTables);
             tableCount.set(tableNames.size());
+            rowCount.set(countRows(scon, srcTables.values(), filters));
             currentTable.set(0);
+            currentRow.set(0);
 
             // Synchronize them
             try {
@@ -52,7 +56,7 @@ public class DbComparator {
                     Table srcTable = srcTables.get(tableName);
                     Table dstTable = dstTables.get(tableName);
                     System.out.println("Comparing table: " + srcTable.getName());
-                    syncTables(scon, dcon, srcTable, dstTable, filters);
+                    syncTable(scon, dcon, srcTable, dstTable, filters);
                     currentTable.incrementAndGet();
                     fireProgress();
                 }
@@ -79,6 +83,28 @@ public class DbComparator {
         for (Table table : tables) {
             table.setConstraints(con, enabled);
         }
+    }
+
+    private static int countRows(Connection con, Collection<Table> tables, Map<String,Object> filters) throws Exception {
+        int count = 0;
+        for(Table table : tables) {
+            String sql = table.writeCountQuery(filters);
+            try (PreparedStatement stmt = con.prepareStatement(sql)) {
+                if(table.hasAllColumns(filters.keySet())) {
+                    setFilterParams(stmt, filters);
+                }
+                if(stmt.execute()) {
+                    do {
+                        try (ResultSet rs = stmt.getResultSet()) {
+                            while (rs.next()) {
+                                count += rs.getInt(1);
+                            }
+                        }
+                    } while(stmt.getMoreResults());
+                }
+            }
+        }
+        return count;
     }
 
     /**
@@ -119,6 +145,14 @@ public class DbComparator {
         return tables;
     }
 
+    private static void setFilterParams(PreparedStatement stmt, Map<String, Object> filters) throws Exception {
+        int i = 1;
+        for(Object val : filters.values()) {
+            stmt.setObject(i, val);
+            i++;
+        }
+    }
+
     /**
      * Compares two tables and syncronizes the results
      *
@@ -128,20 +162,16 @@ public class DbComparator {
      * @param dstTable    The destination table
      * @throws Exception
      */
-    private static void syncTables(Connection scon, Connection dcon, Table srcTable, Table dstTable,
-                                   Map<String,Object> filters) throws Exception {
+    private void syncTable(Connection scon, Connection dcon, Table srcTable, Table dstTable,
+                                  Map<String, Object> filters) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = lcd.writeHashedQuery(filters);
         //int i = 0; // TODO: Threading and progress indicator
         try (PreparedStatement stmt = scon.prepareStatement(sql); PreparedStatement dtmt = dcon.prepareStatement(sql)) {
             // Set filter parameters
             if(lcd.hasAllColumns(filters.keySet())) {
-                int i = 1;
-                for(Object val : filters.values()) {
-                    stmt.setObject(i, val);
-                    dtmt.setObject(i, val);
-                    i++;
-                }
+                setFilterParams(stmt, filters);
+                setFilterParams(dtmt, filters);
             }
 
             // Make changes
@@ -161,6 +191,7 @@ public class DbComparator {
                         changeset.add(key);
                     }
                     advance(srcTable, dstTable, srs, drs);
+                    currentRow.incrementAndGet();
                 }
                 lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT));
                 lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE));
@@ -238,6 +269,14 @@ public class DbComparator {
             }
         }
         return out;
+    }
+
+    public int getCurrentRow() {
+        return currentRow.get();
+    }
+
+    public int getRowCount() {
+        return rowCount.get();
     }
 
     public int getCurrentTable() {

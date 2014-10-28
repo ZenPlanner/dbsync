@@ -119,6 +119,14 @@ public class Table extends TreeMap<String, Column> {
         return sql;
     }
 
+    public String writeCountQuery(Map<String,Object> filters) {
+        String sql = String.format("select\n\tcount(*)\nfrom [%s]\n", getName());
+        if(hasAllColumns(filters.keySet())) {
+            sql += "where [" + Joiner.on("]=?\n\tand [").join(filters.keySet()) + "]=?;\n";
+        }
+        return sql;
+    }
+
     public boolean hasAllColumns(Set<String> colNames) {
         Set<String> filterCols = new HashSet<>();
         filterCols.addAll(keySet());
