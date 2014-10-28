@@ -41,6 +41,7 @@ public class DbComparator {
             // Get the intersection of the tables
             Map<String, Table> srcTables = filterTables(getTables(scon));
             Map<String, Table> dstTables = getTables(dcon);
+            Map<String, List<String>> constraints = getConstraints(dcon);
             Set<String> tableNames = new HashSet<>();
             tableNames.addAll(srcTables.keySet());
             tableNames.retainAll(dstTables.keySet());
@@ -52,7 +53,7 @@ public class DbComparator {
 
             // Synchronize them
             try {
-                setConstraints(dcon, dstTables.values(), false);
+                setConstraints(dcon, constraints, false);
                 for(String tableName : tableNames) {
                     setCurrentTableName(tableName);
                     Table srcTable = srcTables.get(tableName);
@@ -65,7 +66,7 @@ public class DbComparator {
             } catch (Exception ex) {
                 throw ex;
             } finally {
-                setConstraints(dcon, dstTables.values(), true);
+                setConstraints(dcon, constraints, true);
             }
         } catch (Exception ex) {
             throw new RuntimeException("Error comparing databases!", ex);
@@ -74,16 +75,19 @@ public class DbComparator {
         fireProgress();
     }
 
-    /**
-     * Turns all constraints on or off
-     *
-     * @param con The connection on which to enable or disable constraints
-     * @param tables A collection of tables on which to operate
-     * @param enabled A flag indicating if constraints should be enabled or disabled
-     */
-    private static void setConstraints(Connection con, Collection<Table> tables, boolean enabled) {
-        for (Table table : tables) {
-            table.setConstraints(con, enabled);
+    private static void setConstraints(Connection con, Map<String,List<String>> tables, boolean enabled) {
+        for (String tableName : tables.keySet()) {
+            List<String> constraints = tables.get(tableName);
+            for(String constraintName : constraints) {
+                try (Statement stmt = con.createStatement()) {
+                    String state = enabled ? "CHECK" : "NOCHECK";
+                    String sql = String.format("ALTER TABLE [%s] %s CONSTRAINT [%s];", tableName, state, constraintName);
+                    System.out.println(sql);
+                    stmt.executeUpdate(sql);
+                } catch (Exception ex) {
+                    throw new RuntimeException("Error setting constraints enabled: " + enabled, ex);
+                }
+            }
         }
     }
 
@@ -144,6 +148,25 @@ public class DbComparator {
             }
         }
 
+        return tables;
+    }
+
+    private static Map<String, List<String>> getConstraints(Connection con) throws Exception {
+        Map<String, List<String>> tables = new HashMap<>();
+        try (Statement stmt = con.createStatement()) {
+            String sql = Resources.toString(Resources.getResource("GetConstraints.sql"), Charsets.UTF_8);
+            try (ResultSet rs = stmt.executeQuery(sql)) {
+                while (rs.next()) {
+                    String tableName = rs.getString("table_name");
+                    if (!tables.containsKey(tableName)) {
+                        tables.put(tableName, new ArrayList<>());
+                    }
+                    List<String> constraints = tables.get(tableName);
+                    String constraintName = rs.getString("constraint_name");
+                    constraints.add(constraintName);
+                }
+            }
+        }
         return tables;
     }
 
