@@ -8,6 +8,7 @@ import java.io.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.*;
+import java.util.List;
 
 public class FormMain extends JFrame {
     private JPanel panel1;
@@ -36,6 +37,24 @@ public class FormMain extends JFrame {
         setSize(800, 600);
         setVisible(true);
         pack();
+        loadProps();
+
+        // Restore constraints if the app crashed
+        Map<String, List<String>> constraints = comp.loadConstraints();
+        if(constraints != null) {
+            int res = JOptionPane.showConfirmDialog(this,
+                    "Abnormal termination detected, would you like to restore constraints from backup file?",
+                    "Warning", JOptionPane.YES_NO_OPTION);
+            if(res == JOptionPane.YES_OPTION){
+                String dstCon = getDstCon();
+                try (Connection dcon = DriverManager.getConnection(dstCon)) {
+                    comp.setConstraints(dcon, constraints, true);
+                } catch (Exception ex) {
+                    throw new RuntimeException("Error restoring constraints!", ex);
+                }
+                comp.unloadConstraints();
+            }
+        }
 
         Timer timer = new Timer(100, new ActionListener() {
             @Override
@@ -85,7 +104,12 @@ public class FormMain extends JFrame {
             }
         });
 
-        loadProps();
+    }
+
+    private String getDstCon() {
+        String dstCon = String.format(conTemplate, tbDstServer.getText(), tbDstDb.getText(),
+                tbDstUsername.getText(), tbDstPassword.getText());
+        return dstCon;
     }
 
     private void sync() throws Exception {
@@ -93,8 +117,7 @@ public class FormMain extends JFrame {
         filters.put(tbFilterColumn.getText().toLowerCase(), tbFilterValue.getText());
         String srcCon = String.format(conTemplate, tbSrcServer.getText(), tbSrcDb.getText(),
                 tbSrcUsername.getText(), tbSrcPassword.getText());
-        String dstCon = String.format(conTemplate, tbDstServer.getText(), tbDstDb.getText(),
-                tbDstUsername.getText(), tbDstPassword.getText());
+        String dstCon = getDstCon();
         java.util.List<String> ignoreTables = Arrays.asList(tbIgnore.getText().split(","));
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {

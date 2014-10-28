@@ -30,6 +30,58 @@ public class DbComparator {
 
     }
 
+    private void saveConstraints(Map<String, List<String>> constraints) {
+        Properties props = loadProps();
+        StringBuilder sb = new StringBuilder();
+        for(String tableName : constraints.keySet()) {
+            List<String> conNames = constraints.get(tableName);
+            for(String conName : conNames) {
+                if(sb.length() > 0) {
+                    sb.append(",");
+                }
+                sb.append(tableName + "." + conName);
+            }
+        }
+        props.put("Constraints", sb.toString());
+        saveProps(props);
+    }
+
+    public void unloadConstraints() {
+        clearProp("Constraints");
+    }
+
+    private void clearProp(String name) {
+        Properties props = loadProps();
+        props.remove(name);
+        saveProps(props);
+    }
+
+    public Map<String, List<String>> loadConstraints() {
+        Properties props = loadProps();
+        String text = props.getProperty("Constraints");
+        if(text == null || text.trim().length() == 0) {
+            return null;
+        }
+
+        Map<String, List<String>> constraints = new HashMap<>();
+        String[] terms = text.split(",");
+        for(String term : terms) {
+            String[] parts = term.split("\\.");
+            if(parts.length != 2) {
+                throw new RuntimeException("Invalid properties file!");
+            }
+            String tableName = parts[0];
+            String conName = parts[1];
+            List<String> conNames = constraints.get(tableName);
+            if(conNames == null) {
+                conNames = new ArrayList<>();
+                constraints.put(tableName, conNames);
+            }
+            conNames.add(conName);
+        }
+        return constraints;
+    }
+
     /**
      * Takes connections to two databases, compares deltas, and upserts appropriate data to get them in sync
      *
@@ -39,10 +91,13 @@ public class DbComparator {
      */
     public void synchronize(Connection scon, Connection dcon, Map<String,Object> filters, List<String> ignoreTables) {
         try {
+            // Make sure to save constraint status
+            Map<String, List<String>> constraints = getConstraints(dcon);
+            saveConstraints(constraints);
+
             // Get the intersection of the tables
             Map<String, Table> srcTables = filterTables(getTables(scon));
             Map<String, Table> dstTables = getTables(dcon);
-            Map<String, List<String>> constraints = getConstraints(dcon);
             Set<String> tableNames = new HashSet<>();
             tableNames.addAll(srcTables.keySet());
             tableNames.retainAll(dstTables.keySet());
@@ -68,6 +123,7 @@ public class DbComparator {
                 throw ex;
             } finally {
                 setConstraints(dcon, constraints, true);
+                unloadConstraints();
             }
         } catch (Exception ex) {
             throw new RuntimeException("Error comparing databases!", ex);
@@ -76,7 +132,7 @@ public class DbComparator {
         fireProgress();
     }
 
-    private static void setConstraints(Connection con, Map<String,List<String>> tables, boolean enabled) {
+    public void setConstraints(Connection con, Map<String,List<String>> tables, boolean enabled) {
         for (String tableName : tables.keySet()) {
             List<String> constraints = tables.get(tableName);
             for(String constraintName : constraints) {

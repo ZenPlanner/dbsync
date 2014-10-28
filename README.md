@@ -22,10 +22,10 @@ Done
 * Filter on any number and type of fields
 * Store settings in config file
 * Per row progress indicator based on select count(*)
+* Only re-enable constraints that were originally enabled
 
 In progress
 -----------
-* Only re-enable constraints that were originally enabled
 
 TODO
 ----
