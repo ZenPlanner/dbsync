@@ -23,6 +23,7 @@ Done
 * Store settings in config file
 * Per row progress indicator based on select count(*)
 * Only re-enable constraints that were originally enabled
+* Filters with "or", not just "and"
 
 In progress
 -----------
@@ -30,7 +31,6 @@ In progress
 TODO
 ----
 * Add obfuscation
-* Filters with "or", not just "and"
 * Find and tune performance bottlenecks
 * Multi-threading?
 * Refactor and test

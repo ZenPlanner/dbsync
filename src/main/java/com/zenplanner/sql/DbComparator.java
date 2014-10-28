@@ -89,7 +89,7 @@ public class DbComparator {
      * @param dcon The destination connection
      * @param filterValue A value with which to filter partition data
      */
-    public void synchronize(Connection scon, Connection dcon, Map<String,Object> filters, List<String> ignoreTables) {
+    public void synchronize(Connection scon, Connection dcon, Map<String,List<Object>> filters, List<String> ignoreTables) {
         try {
             // Make sure to save constraint status
             Map<String, List<String>> constraints = getConstraints(dcon);
@@ -148,7 +148,7 @@ public class DbComparator {
         }
     }
 
-    private static int countRows(Connection con, Collection<Table> tables, Map<String,Object> filters) throws Exception {
+    private static int countRows(Connection con, Collection<Table> tables, Map<String,List<Object>> filters) throws Exception {
         int count = 0;
         for(Table table : tables) {
             String sql = table.writeCountQuery(filters);
@@ -227,11 +227,12 @@ public class DbComparator {
         return tables;
     }
 
-    private static void setFilterParams(PreparedStatement stmt, Map<String, Object> filters) throws Exception {
-        int i = 1;
-        for(Object val : filters.values()) {
-            stmt.setObject(i, val);
-            i++;
+    private static void setFilterParams(PreparedStatement stmt, Map<String,List<Object>> filters) throws Exception {
+        int i = 0;
+        for(List<Object> vals : filters.values()) {
+            for(Object val : vals) {
+                stmt.setObject(++i, val);
+            }
         }
     }
 
@@ -245,7 +246,7 @@ public class DbComparator {
      * @throws Exception
      */
     private void syncTable(Connection scon, Connection dcon, Table srcTable, Table dstTable,
-                                  Map<String, Object> filters) throws Exception {
+                                  Map<String, List<Object>> filters) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = lcd.writeHashedQuery(filters);
         //int i = 0; // TODO: Threading and progress indicator

@@ -78,7 +78,7 @@ public class FormMain extends JFrame {
                             lblCurrentRow.setText("");
                             btnGo.setEnabled(true);
                             pbMain.setValue(0);
-                            JOptionPane.showMessageDialog(null, "Synchronization complete!");
+                            JOptionPane.showMessageDialog(FormMain.this, "Synchronization complete!");
                         }
                     }
                 });
@@ -113,12 +113,14 @@ public class FormMain extends JFrame {
     }
 
     private void sync() throws Exception {
-        Map<String,Object> filters = new HashMap<String,Object>();
-        filters.put(tbFilterColumn.getText().toLowerCase(), tbFilterValue.getText());
+        Map<String,List<Object>> filters = new HashMap<String,List<Object>>();
+        List<Object> vals = Arrays.asList(tbFilterValue.getText().split(","));
+        filters.put(tbFilterColumn.getText().toLowerCase(), vals);
+        java.util.List<String> ignoreTables = Arrays.asList(tbIgnore.getText().split(","));
+
         String srcCon = String.format(conTemplate, tbSrcServer.getText(), tbSrcDb.getText(),
                 tbSrcUsername.getText(), tbSrcPassword.getText());
         String dstCon = getDstCon();
-        java.util.List<String> ignoreTables = Arrays.asList(tbIgnore.getText().split(","));
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
                 comp.synchronize(scon, dcon, filters, ignoreTables);

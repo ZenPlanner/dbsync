@@ -5,10 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
@@ -20,14 +17,15 @@ public class App {
             FormMain frm = new FormMain();
             frm.setVisible(true);
         } else {
-            Map<String, Object> filters = new HashMap<>();
-            filters.put(args[2], args[3]);
+            Map<String, List<Object>> filters = new HashMap<>();
+            List<Object> vals = Arrays.asList(args[3].split(","));
+            filters.put(args[2], vals);
             List<String> ignoreTables = new ArrayList<>(); // TODO: Allow command line input
             sync(args[0], args[1], filters, ignoreTables);
         }
     }
 
-    private static void sync(String srcCon, String dstCon, Map<String, Object> filters, List<String> ignoreTables) throws Exception {
+    private static void sync(String srcCon, String dstCon, Map<String, List<Object>> filters, List<String> ignoreTables) throws Exception {
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
                 DbComparator comp = new DbComparator();

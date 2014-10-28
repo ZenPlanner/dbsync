@@ -96,7 +96,7 @@ public class Table extends TreeMap<String, Column> {
     /**
      * @return A magical query that returns the primary key and a hash of the row
      */
-    public String writeHashedQuery(Map<String,Object> filters) {
+    public String writeHashedQuery(Map<String,List<Object>> filters) {
         List<String> colNames = new ArrayList<>();
         List<String> pk = new ArrayList<>();
         for(Column col : values()) {
@@ -111,19 +111,34 @@ public class Table extends TreeMap<String, Column> {
         String sql = String.format("select\n\t%s\nfrom [%s]\n", selectClause, getName());
 
         // Filter
-        if(hasAllColumns(filters.keySet())) {
-            sql += "where [" + Joiner.on("]=?\n\tand [").join(filters.keySet()) + "]=?";
-        }
+        sql = buildWhereClause(filters, sql);
 
         sql += String.format("order by %s", orderClause);
         return sql;
     }
 
-    public String writeCountQuery(Map<String,Object> filters) {
-        String sql = String.format("select\n\tcount(*)\nfrom [%s]\n", getName());
+    private String buildWhereClause(Map<String, List<Object>> filters, String sql) {
         if(hasAllColumns(filters.keySet())) {
-            sql += "where [" + Joiner.on("]=?\n\tand [").join(filters.keySet()) + "]=?;\n";
+            StringBuilder sb = new StringBuilder();
+            for(String key : filters.keySet()) {
+                if(sb.length() > 0) {
+                    sb.append("\n\t and ");
+                }
+                List<Object> vals = filters.get(key);
+                List<String> terms = new ArrayList<>();
+                for(Object val : vals) {
+                    terms.add("?");
+                }
+                sb.append("[" + key + "] in (" + Joiner.on(",").join(terms) + ")");
+            }
+            sql += "where " + sb.toString();
         }
+        return sql;
+    }
+
+    public String writeCountQuery(Map<String,List<Object>> filters) {
+        String sql = String.format("select\n\tcount(*)\nfrom [%s]\n", getName());
+        sql = buildWhereClause(filters, sql);
         return sql;
     }
 
