@@ -113,7 +113,7 @@ public class Table extends TreeMap<String, Column> {
         // Filter
         sql = buildWhereClause(filters, sql);
 
-        sql += String.format("order by %s", orderClause);
+        sql += String.format("\norder by %s", orderClause);
         return sql;
     }
 
@@ -180,7 +180,15 @@ public class Table extends TreeMap<String, Column> {
     }
 
     public PreparedStatement createSelectQuery(Connection con, Set<Key> keys, int count) {
-        return createQuery("select *", con, keys, count);
+        StringBuilder sb = new StringBuilder();
+        for(Column col : values()) {
+            if(sb.length() > 0) {
+                sb.append(", ");
+            }
+            sb.append("[" + col.getColumnName() + "]");
+        }
+        String sql = "select " + sb.toString();
+        return createQuery(sql, con, keys, count);
     }
 
     public PreparedStatement createDeleteQuery(Connection con, Set<Key> keys, int count) {
@@ -274,37 +282,24 @@ public class Table extends TreeMap<String, Column> {
             return;
         }
 
-        List<String> tn = new ArrayList<>();
-        for(Column col : values()) {
-            tn.add(col.getColumnName());
-        }
-        String[] colNames = tn.toArray(new String[]{});
-
+        int colCount = size();
         String sql = writeInsertQuery();
         setIdentityInsert(dcon, true);
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
-        int rowIndex = 0;
-        int size = keys.size();
-        System.out.println("Batch insert " + size + " rows into " + getName());
+        System.out.println("Batch insert " + keys.size() + " rows into " + getName());
         while (keys.size() > 0) {
             int count = Math.min(keys.size(), rowLimit);
             System.out.println("Inserting " + count + " rows into " + getName());
-            int rowCount = 0;
-            int oldSize = keys.size();
             try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
-                if(keys.size() != oldSize - count) {
-                    System.out.println("Not all keys used!");
-                }
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
                         while (rs.next()) {
                             insertStmt.clearParameters();
-                            for(int i = 0; i < colNames.length; i++) {
-                                insertStmt.setObject(i+1, rs.getObject(colNames[i]));
+                            for(int i = 1; i <= colCount; i++) {
+                                insertStmt.setObject(i, rs.getObject(i));
                             }
                             insertStmt.addBatch();
-                            rowCount++;
                         }
                         try {
                             insertStmt.executeBatch();
@@ -314,10 +309,10 @@ public class Table extends TreeMap<String, Column> {
                         //System.out.println("Inserted " + rowCount + " rows");
                     }
                 }
+            } catch (Exception ex) {
+                throw new RuntimeException("Error inserting rows: " + sql, ex);
             }
-            rowIndex += rowCount;
         }
-        System.out.println("Inserted " + rowIndex + " / " + size + " rows into " + getName());
     }
 
     public void updateRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
