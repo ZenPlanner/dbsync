@@ -287,13 +287,13 @@ public class Table extends TreeMap<String, Column> {
         setIdentityInsert(dcon, true);
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
-        System.out.println("Batch insert " + keys.size() + " rows into " + getName());
+        int size = keys.size();
         while (keys.size() > 0) {
             int count = Math.min(keys.size(), rowLimit);
-            System.out.println("Inserting " + count + " rows into " + getName());
             try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
+                        long queryStart = System.currentTimeMillis();
                         while (rs.next()) {
                             insertStmt.clearParameters();
                             for(int i = 1; i <= colCount; i++) {
@@ -301,18 +301,22 @@ public class Table extends TreeMap<String, Column> {
                             }
                             insertStmt.addBatch();
                         }
+                        long batchStart = System.currentTimeMillis();
+                        System.out.println("Read " + count + " rows from " + getName() + " in " + (batchStart - queryStart) + "ms");
                         try {
                             insertStmt.executeBatch();
                         } catch (Exception ex) {
                             throw new RuntimeException("Error inserting rows: " + sql, ex);
                         }
-                        //System.out.println("Inserted " + rowCount + " rows");
+                        long end = System.currentTimeMillis();
+                        System.out.println("Wrote " + count + " rows to " + getName() + " in " + (end - batchStart) + "ms");
                     }
                 }
             } catch (Exception ex) {
                 throw new RuntimeException("Error inserting rows: " + sql, ex);
             }
         }
+        System.out.println("Batch inserted " + size + " rows into " + getName());
     }
 
     public void updateRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
