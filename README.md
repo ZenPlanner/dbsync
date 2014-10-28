@@ -1,7 +1,7 @@
 db-sync
 =======
 
-Syncronize two JDBC databases
+Synchronize two JDBC databases
 
 
 Done
@@ -27,7 +27,12 @@ In progress
 
 TODO
 ----
-* Performance testing
+* Only re-enable constraints that were originally enabled
+* Add obfuscation
+* Per row progress indicator based on select count(*)
+* Filters with "or", not just "and"
+* Find and tune performance bottlenecks
+* Multi-threading?
 * Refactor and test
 
 Bugs
