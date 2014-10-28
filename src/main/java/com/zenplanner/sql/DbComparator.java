@@ -5,6 +5,7 @@ import com.google.common.io.Resources;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -82,7 +83,7 @@ public class DbComparator {
                 try (Statement stmt = con.createStatement()) {
                     String state = enabled ? "CHECK" : "NOCHECK";
                     String sql = String.format("ALTER TABLE [%s] %s CONSTRAINT [%s];", tableName, state, constraintName);
-                    System.out.println(sql);
+                    //System.out.println(sql);
                     stmt.executeUpdate(sql);
                 } catch (Exception ex) {
                     throw new RuntimeException("Error setting constraints enabled: " + enabled, ex);
@@ -294,6 +295,33 @@ public class DbComparator {
             }
         }
         return out;
+    }
+
+    private File getPropFile() {
+        File dir = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
+        if("classes".equals(dir.getName())) {
+            dir = dir.getParentFile();
+        }
+        File f = new File(dir, "dbsync.properties");
+        return f;
+    }
+
+    public Properties loadProps() {
+        Properties props = new Properties();
+        try(InputStream is = new FileInputStream( getPropFile() )) {
+            props.load( is );
+        } catch (Exception ex) {
+            throw new RuntimeException("Error loading properties!", ex);
+        }
+        return props;
+    }
+
+    public void saveProps(Properties props) {
+        try(OutputStream out = new FileOutputStream( getPropFile() )) {
+            props.store(out, "dbsync properties");
+        } catch (Exception ex) {
+            throw new RuntimeException("Error saving properties!", ex);
+        }
     }
 
     public int getCurrentRow() {

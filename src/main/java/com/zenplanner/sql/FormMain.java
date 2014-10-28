@@ -103,43 +103,27 @@ public class FormMain extends JFrame {
         }
     }
 
-    private File getPropFile() {
-        File dir = new File(FormMain.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-        if("classes".equals(dir.getName())) {
-            dir = dir.getParentFile();
-        }
-        File f = new File(dir, "dbsync.properties");
-        return f;
-    }
-
     private void loadProps() {
-        try {
-            Properties props = new Properties();
-            try(InputStream is = new FileInputStream( getPropFile() )) {
-                props.load( is );
-                tbSrcServer.setText(props.getProperty("SourceServer"));
-                tbSrcDb.setText(props.getProperty("SourceDb"));
-                tbSrcUsername.setText(props.getProperty("SourceUsername"));
-                tbSrcPassword.setText(props.getProperty("SourcePassword"));
+        Properties props = comp.loadProps();
+        tbSrcServer.setText(props.getProperty("SourceServer"));
+        tbSrcDb.setText(props.getProperty("SourceDb"));
+        tbSrcUsername.setText(props.getProperty("SourceUsername"));
+        tbSrcPassword.setText(props.getProperty("SourcePassword"));
 
-                tbDstServer.setText(props.getProperty("DestServer"));
-                tbDstDb.setText(props.getProperty("DestDb"));
-                tbDstUsername.setText(props.getProperty("DestUsername"));
-                tbDstPassword.setText(props.getProperty("DestPassword"));
+        tbDstServer.setText(props.getProperty("DestServer"));
+        tbDstDb.setText(props.getProperty("DestDb"));
+        tbDstUsername.setText(props.getProperty("DestUsername"));
+        tbDstPassword.setText(props.getProperty("DestPassword"));
 
-                tbFilterColumn.setText(props.getProperty("FilterColumn"));
-                tbFilterValue.setText(props.getProperty("FilterValue"));
+        tbFilterColumn.setText(props.getProperty("FilterColumn"));
+        tbFilterValue.setText(props.getProperty("FilterValue"));
 
-                tbIgnore.setText(props.getProperty("IgnoreTables"));
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            // If there's an error, they just don't get pre-loaded properties
-        }
+        tbIgnore.setText(props.getProperty("IgnoreTables"));
      }
 
     private void saveProps() throws Exception {
-        Properties props = new Properties();
+        Properties props = comp.loadProps();
+
         props.setProperty("SourceServer", tbSrcServer.getText());
         props.setProperty("SourceDb", tbSrcDb.getText());
         props.setProperty("SourceUsername", tbSrcUsername.getText());
@@ -155,9 +139,7 @@ public class FormMain extends JFrame {
 
         props.setProperty("IgnoreTables", tbIgnore.getText());
 
-        try(OutputStream out = new FileOutputStream( getPropFile() )) {
-            props.store(out, "dbsync properties");
-        }
+        comp.saveProps(props);
     }
 
 

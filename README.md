@@ -25,10 +25,10 @@ Done
 
 In progress
 -----------
+* Only re-enable constraints that were originally enabled
 
 TODO
 ----
-* Only re-enable constraints that were originally enabled
 * Add obfuscation
 * Filters with "or", not just "and"
 * Find and tune performance bottlenecks
