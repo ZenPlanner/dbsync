@@ -102,15 +102,19 @@ public class DbComparator {
             tableNames.addAll(srcTables.keySet());
             tableNames.retainAll(dstTables.keySet());
             tableNames.removeAll(ignoreTables);
+
             tableCount.set(tableNames.size());
             rowCount.set(countRows(scon, srcTables.values(), filters));
             currentTable.set(0);
             currentRow.set(0);
 
+            String[] names = tableNames.toArray(new String[]{});
+            Arrays.sort(names);
+
             // Synchronize them
             try {
                 setConstraints(dcon, constraints, false);
-                for(String tableName : tableNames) {
+                for(String tableName : names) {
                     setCurrentTableName(tableName);
                     Table srcTable = srcTables.get(tableName);
                     Table dstTable = dstTables.get(tableName);
@@ -228,10 +232,10 @@ public class DbComparator {
     }
 
     private static void setFilterParams(PreparedStatement stmt, Map<String,List<Object>> filters) throws Exception {
-        int i = 0;
+        int i = 1;
         for(List<Object> vals : filters.values()) {
             for(Object val : vals) {
-                stmt.setObject(++i, val);
+                stmt.setObject(i++, val);
             }
         }
     }

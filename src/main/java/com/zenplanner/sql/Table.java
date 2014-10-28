@@ -11,7 +11,7 @@ import java.util.*;
 public class Table extends TreeMap<String, Column> {
     private final String name;
     private List<Column> pk;
-    private static final int maxKeys = 1999; // jtds driver limit
+    private static final int maxKeys = 2000; // jtds driver limit
 
     public Table(String name) {
         this.name = name;
@@ -213,7 +213,7 @@ public class Table extends TreeMap<String, Column> {
                 parms.add(val);
             }
             sb.append(")\n");
-            if (rowIndex++ >= count) {
+            if (++rowIndex >= count) {
                 break;
             }
         }
@@ -274,28 +274,41 @@ public class Table extends TreeMap<String, Column> {
             return;
         }
 
+        List<String> tn = new ArrayList<>();
+        for(Column col : values()) {
+            tn.add(col.getColumnName());
+        }
+        String[] colNames = tn.toArray(new String[]{});
+
+        String sql = writeInsertQuery();
         setIdentityInsert(dcon, true);
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
             System.out.println("Inserting " + count + " rows into " + getName());
+            int rowCount = 0;
             try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
-                    String sql = writeInsertQuery();
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
                         while (rs.next()) {
-                            insertRow(insertStmt, rs);
+                            insertStmt.clearParameters();
+                            for(int i = 0; i < colNames.length; i++) {
+                                insertStmt.setObject(i+1, rs.getObject(colNames[i]));
+                            }
+                            insertStmt.addBatch();
+                            rowCount++;
                         }
                         try {
                             insertStmt.executeBatch();
                         } catch (Exception ex) {
                             throw new RuntimeException("Error inserting rows: " + sql, ex);
                         }
+                        System.out.println("Inserted " + rowCount + " rows");
                     }
                 }
             }
-            rowIndex += count;
+            rowIndex += rowCount;
         }
     }
 
@@ -325,24 +338,6 @@ public class Table extends TreeMap<String, Column> {
             }
             rowIndex += count;
         }
-    }
-
-    /**
-     * Adds the values from a given row to the PreparedStatement
-     *
-     * @param stmt  The PreparedStatement to help prepare
-     * @param rs    The ResultSet to pull values from
-     * @throws Exception
-     */
-    private void insertRow(PreparedStatement stmt, ResultSet rs) throws Exception {
-        stmt.clearParameters();
-        int i = 0;
-        for (Column col : values()) {
-            String colName = col.getColumnName();
-            Object val = rs.getObject(colName);
-            stmt.setObject(++i, val);
-        }
-        stmt.addBatch();
     }
 
     private void updateRow(PreparedStatement stmt, ResultSet rs) throws Exception {
