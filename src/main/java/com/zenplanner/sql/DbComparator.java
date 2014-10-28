@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class DbComparator {
 
+    private String currentTableName;
     private final AtomicInteger rowCount = new AtomicInteger();
     private final AtomicInteger tableCount = new AtomicInteger();
     private final AtomicInteger currentTable = new AtomicInteger();
@@ -53,6 +54,7 @@ public class DbComparator {
             try {
                 setConstraints(dcon, dstTables.values(), false);
                 for(String tableName : tableNames) {
+                    setCurrentTableName(tableName);
                     Table srcTable = srcTables.get(tableName);
                     Table dstTable = dstTables.get(tableName);
                     System.out.println("Comparing table: " + srcTable.getName());
@@ -277,6 +279,14 @@ public class DbComparator {
 
     public int getRowCount() {
         return rowCount.get();
+    }
+
+    public synchronized void setCurrentTableName(String name) {
+        currentTableName = name;
+    }
+
+    public synchronized String getCurrentTableName() {
+        return currentTableName;
     }
 
     public int getCurrentTable() {

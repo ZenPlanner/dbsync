@@ -21,6 +21,7 @@ Done
 * Swing UI
 * Filter on any number and type of fields
 * Store settings in config file
+* Per row progress indicator based on select count(*)
 
 In progress
 -----------
@@ -29,7 +30,6 @@ TODO
 ----
 * Only re-enable constraints that were originally enabled
 * Add obfuscation
-* Per row progress indicator based on select count(*)
 * Filters with "or", not just "and"
 * Find and tune performance bottlenecks
 * Multi-threading?

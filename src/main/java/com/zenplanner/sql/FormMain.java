@@ -42,6 +42,7 @@ public class FormMain extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 pbMain.setMaximum(comp.getRowCount());
                 pbMain.setValue(comp.getCurrentRow());
+                lblCurrentTable.setText(comp.getCurrentTableName());
                 lblCurrentRow.setText("" + comp.getCurrentRow() + " / " + comp.getRowCount());
             }
         }).start();
