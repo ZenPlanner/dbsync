@@ -284,11 +284,18 @@ public class Table extends TreeMap<String, Column> {
         setIdentityInsert(dcon, true);
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
-        for (int rowIndex = 0; rowIndex < keys.size(); ) {
-            int count = Math.min(keys.size() - rowIndex, rowLimit);
+        int rowIndex = 0;
+        int size = keys.size();
+        System.out.println("Batch insert " + size + " rows into " + getName());
+        while (keys.size() > 0) {
+            int count = Math.min(keys.size(), rowLimit);
             System.out.println("Inserting " + count + " rows into " + getName());
             int rowCount = 0;
+            int oldSize = keys.size();
             try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
+                if(keys.size() != oldSize - count) {
+                    System.out.println("Not all keys used!");
+                }
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
                         while (rs.next()) {
@@ -304,12 +311,13 @@ public class Table extends TreeMap<String, Column> {
                         } catch (Exception ex) {
                             throw new RuntimeException("Error inserting rows: " + sql, ex);
                         }
-                        System.out.println("Inserted " + rowCount + " rows");
+                        //System.out.println("Inserted " + rowCount + " rows");
                     }
                 }
             }
             rowIndex += rowCount;
         }
+        System.out.println("Inserted " + rowIndex + " / " + size + " rows into " + getName());
     }
 
     public void updateRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
