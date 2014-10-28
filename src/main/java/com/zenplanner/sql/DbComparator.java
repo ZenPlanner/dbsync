@@ -104,7 +104,7 @@ public class DbComparator {
             tableNames.removeAll(ignoreTables);
 
             tableCount.set(tableNames.size());
-            rowCount.set(countRows(scon, srcTables.values(), filters));
+            rowCount.set(countRows(scon, srcTables, tableNames, filters));
             currentTable.set(0);
             currentRow.set(0);
 
@@ -152,9 +152,10 @@ public class DbComparator {
         }
     }
 
-    private static int countRows(Connection con, Collection<Table> tables, Map<String,List<Object>> filters) throws Exception {
+    private static int countRows(Connection con, Map<String, Table> tables, Set<String> tableNames, Map<String,List<Object>> filters) throws Exception {
         int count = 0;
-        for(Table table : tables) {
+        for(String tableName : tableNames) {
+            Table table = tables.get(tableName);
             String sql = table.writeCountQuery(filters);
             try (PreparedStatement stmt = con.prepareStatement(sql)) {
                 if(table.hasAllColumns(filters.keySet())) {
@@ -164,7 +165,9 @@ public class DbComparator {
                     do {
                         try (ResultSet rs = stmt.getResultSet()) {
                             while (rs.next()) {
-                                count += rs.getInt(1);
+                                int rowCount = rs.getInt(1);
+                                System.out.println(table.getName() + " has " + rowCount + " rows");
+                                count += rowCount;
                             }
                         }
                     } while(stmt.getMoreResults());

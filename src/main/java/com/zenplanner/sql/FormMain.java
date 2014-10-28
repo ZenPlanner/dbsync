@@ -122,6 +122,7 @@ public class FormMain extends JFrame {
                 tbSrcUsername.getText(), tbSrcPassword.getText());
         String dstCon = getDstCon();
         try (Connection scon = DriverManager.getConnection(srcCon)) {
+            scon.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
                 comp.synchronize(scon, dcon, filters, ignoreTables);
             }
