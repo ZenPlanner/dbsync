@@ -97,6 +97,7 @@ public class FormMain extends JFrame {
                             saveProps();
                             sync();
                         } catch (Exception ex) {
+                            ex.printStackTrace();
                             throw new RuntimeException("Error syncing DBs!", ex); // TODO: Pop-up
                         }
                     }
