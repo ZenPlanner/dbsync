@@ -131,21 +131,25 @@ public class FormMain extends JFrame {
     }
 
     private void loadProps() {
-        Properties props = comp.loadProps();
-        tbSrcServer.setText(props.getProperty("SourceServer"));
-        tbSrcDb.setText(props.getProperty("SourceDb"));
-        tbSrcUsername.setText(props.getProperty("SourceUsername"));
-        tbSrcPassword.setText(props.getProperty("SourcePassword"));
+        try {
+            Properties props = comp.loadProps();
+            tbSrcServer.setText(props.getProperty("SourceServer"));
+            tbSrcDb.setText(props.getProperty("SourceDb"));
+            tbSrcUsername.setText(props.getProperty("SourceUsername"));
+            tbSrcPassword.setText(props.getProperty("SourcePassword"));
 
-        tbDstServer.setText(props.getProperty("DestServer"));
-        tbDstDb.setText(props.getProperty("DestDb"));
-        tbDstUsername.setText(props.getProperty("DestUsername"));
-        tbDstPassword.setText(props.getProperty("DestPassword"));
+            tbDstServer.setText(props.getProperty("DestServer"));
+            tbDstDb.setText(props.getProperty("DestDb"));
+            tbDstUsername.setText(props.getProperty("DestUsername"));
+            tbDstPassword.setText(props.getProperty("DestPassword"));
 
-        tbFilterColumn.setText(props.getProperty("FilterColumn"));
-        tbFilterValue.setText(props.getProperty("FilterValue"));
+            tbFilterColumn.setText(props.getProperty("FilterColumn"));
+            tbFilterValue.setText(props.getProperty("FilterValue"));
 
-        tbIgnore.setText(props.getProperty("IgnoreTables"));
+            tbIgnore.setText(props.getProperty("IgnoreTables"));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
      }
 
     private void saveProps() throws Exception {
