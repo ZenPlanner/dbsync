@@ -363,7 +363,12 @@ public class DbComparator {
 
     private File getPropFile() {
         File dir = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
+        if(dir.isFile()) {
+            // Running from a jar, e.g.: /opt/dbthingy/db-sync-1.0-SNAPSHOT-jar-with-dependencies.jar/dbsync.properties
+            dir = dir.getParentFile();
+        }
         if("classes".equals(dir.getName())) {
+            // Running from a class directory (i.e. in an IDE or extracted jar)
             dir = dir.getParentFile();
         }
         File f = new File(dir, "dbsync.properties");
