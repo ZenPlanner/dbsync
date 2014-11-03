@@ -377,7 +377,9 @@ public class DbComparator {
 
     public Properties loadProps() {
         Properties props = new Properties();
-        try(InputStream is = new FileInputStream( getPropFile() )) {
+        File file = getPropFile();
+        System.out.println("Loading properties from file: " + file.getAbsolutePath());
+        try(InputStream is = new FileInputStream( file )) {
             props.load( is );
         } catch (FileNotFoundException ex) {
             System.out.println("Properties file not found, no properties will be populated.");
