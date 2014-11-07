@@ -27,6 +27,7 @@ public class FormMain extends JFrame {
     private JTextArea tbIgnore;
     private JLabel lblCurrentTable;
     private JLabel lblCurrentRow;
+    private JCheckBox cbDelete;
 
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
     private final DbComparator comp = new DbComparator();
@@ -118,6 +119,7 @@ public class FormMain extends JFrame {
         List<Object> vals = Arrays.asList(tbFilterValue.getText().split(","));
         filters.put(tbFilterColumn.getText().toLowerCase(), vals);
         java.util.List<String> ignoreTables = Arrays.asList(tbIgnore.getText().split(","));
+        boolean delete = cbDelete.isSelected();
 
         String srcCon = String.format(conTemplate, tbSrcServer.getText(), tbSrcDb.getText(),
                 tbSrcUsername.getText(), tbSrcPassword.getText());
@@ -125,7 +127,7 @@ public class FormMain extends JFrame {
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             scon.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
-                comp.synchronize(scon, dcon, filters, ignoreTables);
+                comp.synchronize(scon, dcon, filters, ignoreTables, delete);
             }
         }
     }
@@ -143,6 +145,11 @@ public class FormMain extends JFrame {
             tbDstUsername.setText(props.getProperty("DestUsername"));
             tbDstPassword.setText(props.getProperty("DestPassword"));
 
+            try {
+                cbDelete.setSelected(Boolean.parseBoolean(props.getProperty("Delete")));
+            } catch (Exception ex) {
+                // Ignore parse errors
+            }
             tbFilterColumn.setText(props.getProperty("FilterColumn"));
             tbFilterValue.setText(props.getProperty("FilterValue"));
 
@@ -165,6 +172,7 @@ public class FormMain extends JFrame {
         props.setProperty("DestUsername", tbDstUsername.getText());
         props.setProperty("DestPassword", tbDstPassword.getText());
 
+        props.setProperty("Delete", "" + cbDelete.isSelected());
         props.setProperty("FilterColumn", tbFilterColumn.getText());
         props.setProperty("FilterValue", tbFilterValue.getText());
 

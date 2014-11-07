@@ -89,7 +89,7 @@ public class DbComparator {
      * @param dcon The destination connection
      * @param filterValue A value with which to filter partition data
      */
-    public void synchronize(Connection scon, Connection dcon, Map<String,List<Object>> filters, List<String> ignoreTables) {
+    public void synchronize(Connection scon, Connection dcon, Map<String,List<Object>> filters, List<String> ignoreTables, boolean delete) {
         try {
             // Make sure to save constraint status
             Map<String, List<String>> constraints = getConstraints(dcon);
@@ -119,7 +119,7 @@ public class DbComparator {
                     Table srcTable = srcTables.get(tableName);
                     Table dstTable = dstTables.get(tableName);
                     System.out.println("Comparing table: " + srcTable.getName());
-                    syncTable(scon, dcon, srcTable, dstTable, filters);
+                    syncTable(scon, dcon, srcTable, dstTable, filters, delete);
                     currentTable.incrementAndGet();
                     fireProgress();
                 }
@@ -253,7 +253,7 @@ public class DbComparator {
      * @throws Exception
      */
     private void syncTable(Connection scon, Connection dcon, Table srcTable, Table dstTable,
-                                  Map<String, List<Object>> filters) throws Exception {
+                                  Map<String, List<Object>> filters, boolean delete) throws Exception {
         Table lcd = findLcd(srcTable, dstTable);
         String sql = lcd.writeHashedQuery(filters);
         //int i = 0; // TODO: Threading and progress indicator
@@ -285,7 +285,9 @@ public class DbComparator {
                 }
                 lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT));
                 lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE));
-                lcd.deleteRows(dcon, changes.get(ChangeType.DELETE));
+                if(delete) {
+                    lcd.deleteRows(dcon, changes.get(ChangeType.DELETE));
+                }
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows: " + sql, ex);
             }

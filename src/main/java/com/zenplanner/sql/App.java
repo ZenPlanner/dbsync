@@ -29,7 +29,7 @@ public class App {
         try (Connection scon = DriverManager.getConnection(srcCon)) {
             try (Connection dcon = DriverManager.getConnection(dstCon)) {
                 DbComparator comp = new DbComparator();
-                comp.synchronize(scon, dcon, filters, ignoreTables);
+                comp.synchronize(scon, dcon, filters, ignoreTables, true);
             }
         }
     }
