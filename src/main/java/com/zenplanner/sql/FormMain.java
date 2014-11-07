@@ -28,6 +28,7 @@ public class FormMain extends JFrame {
     private JLabel lblCurrentTable;
     private JLabel lblCurrentRow;
     private JCheckBox cbDelete;
+    private JProgressBar pbRecord;
 
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
     private final DbComparator comp = new DbComparator();
@@ -62,6 +63,8 @@ public class FormMain extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 pbMain.setMaximum(comp.getRowCount());
                 pbMain.setValue(comp.getCurrentRow());
+                pbRecord.setMaximum(comp.getModCount());
+                pbRecord.setValue(comp.getCurrentMod());
                 lblCurrentTable.setText(comp.getCurrentTableName());
                 lblCurrentRow.setText("" + comp.getCurrentRow() + " / " + comp.getRowCount());
             }

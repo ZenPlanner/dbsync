@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Table extends TreeMap<String, Column> {
     private final String name;
@@ -255,7 +256,7 @@ public class Table extends TreeMap<String, Column> {
     }
 
 
-    public void deleteRows(Connection dcon, Set<Key> keys) throws Exception {
+    public void deleteRows(Connection dcon, Set<Key> keys, AtomicInteger currentMod) throws Exception {
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
@@ -265,6 +266,7 @@ public class Table extends TreeMap<String, Column> {
                 selectStmt.execute();
             }
             rowIndex += count;
+            currentMod.addAndGet(count);
         }
     }
 
@@ -277,7 +279,7 @@ public class Table extends TreeMap<String, Column> {
      * @param keys The keys of the rows for which to query
      * @throws Exception
      */
-    public void insertRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
+    public void insertRows(Connection scon, Connection dcon, Set<Key> keys, AtomicInteger currentMod) throws Exception {
         if (keys.size() <= 0) {
             return;
         }
@@ -299,6 +301,7 @@ public class Table extends TreeMap<String, Column> {
                             for(int i = 1; i <= colCount; i++) {
                                 insertStmt.setObject(i, rs.getObject(i));
                             }
+                            currentMod.incrementAndGet();
                             insertStmt.addBatch();
                         }
                         long batchStart = System.currentTimeMillis();
@@ -319,7 +322,7 @@ public class Table extends TreeMap<String, Column> {
         System.out.println("Batch inserted " + size + " rows into " + getName());
     }
 
-    public void updateRows(Connection scon, Connection dcon, Set<Key> keys) throws Exception {
+    public void updateRows(Connection scon, Connection dcon, Set<Key> keys, AtomicInteger currentMod) throws Exception {
         if (keys.size() <= 0) {
             return;
         }
@@ -334,6 +337,7 @@ public class Table extends TreeMap<String, Column> {
                     try (PreparedStatement updateStmt = dcon.prepareStatement(sql)) {
                         while (rs.next()) {
                             updateRow(updateStmt, rs);
+                            currentMod.incrementAndGet();
                         }
                         try {
                             updateStmt.executeBatch();

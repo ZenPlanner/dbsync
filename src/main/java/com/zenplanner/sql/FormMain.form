@@ -2,7 +2,7 @@
 <form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="com.zenplanner.sql.FormMain">
   <grid id="27dc6" binding="panel1" default-binding="true" layout-manager="GridBagLayout">
     <constraints>
-      <xy x="20" y="20" width="671" height="461"/>
+      <xy x="20" y="20" width="671" height="487"/>
     </constraints>
     <properties/>
     <border type="none"/>
@@ -190,7 +190,7 @@
       </component>
       <component id="655d7" class="javax.swing.JButton" binding="btnGo">
         <constraints>
-          <grid row="21" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <grid row="22" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
           <gridbag top="20" left="100" bottom="20" right="100" weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
@@ -347,6 +347,31 @@
         <properties>
           <text value="Delete records not in source"/>
         </properties>
+      </component>
+      <component id="61bcb" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="20" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="Table"/>
+        </properties>
+      </component>
+      <component id="e4f5d" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="21" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="Record"/>
+        </properties>
+      </component>
+      <component id="eb255" class="javax.swing.JProgressBar" binding="pbRecord">
+        <constraints>
+          <grid row="21" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag top="4" left="4" bottom="4" right="4" weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties/>
       </component>
     </children>
   </grid>

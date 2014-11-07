@@ -20,6 +20,8 @@ public class DbComparator {
     private final AtomicInteger tableCount = new AtomicInteger();
     private final AtomicInteger currentTable = new AtomicInteger();
     private final AtomicInteger currentRow = new AtomicInteger();
+    private final AtomicInteger modCount = new AtomicInteger();
+    private final AtomicInteger currentMod = new AtomicInteger();
     private final Set<ActionListener> listeners = Collections.synchronizedSet(new HashSet<ActionListener>());
 
     public enum ChangeType {
@@ -283,10 +285,21 @@ public class DbComparator {
                     advance(srcTable, dstTable, srs, drs);
                     currentRow.incrementAndGet();
                 }
-                lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT));
-                lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE));
+
+                // Update stats
+                currentMod.set(0);
+                modCount.set(0);
+                modCount.addAndGet(changes.get(ChangeType.INSERT).size());
+                modCount.addAndGet(changes.get(ChangeType.UPDATE).size());
                 if(delete) {
-                    lcd.deleteRows(dcon, changes.get(ChangeType.DELETE));
+                    modCount.addAndGet(changes.get(ChangeType.DELETE).size());
+                }
+
+                // Sync
+                lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT), currentMod);
+                lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE), currentMod);
+                if(delete) {
+                    lcd.deleteRows(dcon, changes.get(ChangeType.DELETE), currentMod);
                 }
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows: " + sql, ex);
@@ -397,6 +410,14 @@ public class DbComparator {
         } catch (Exception ex) {
             throw new RuntimeException("Error saving properties!", ex);
         }
+    }
+
+    public int getCurrentMod() {
+        return currentMod.get();
+    }
+
+    public int getModCount() {
+        return modCount.get();
     }
 
     public int getCurrentRow() {
