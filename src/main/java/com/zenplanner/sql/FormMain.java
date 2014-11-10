@@ -1,5 +1,10 @@
 package com.zenplanner.sql;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
+
 import javax.swing.*;
 import javax.swing.Timer;
 import java.awt.*;
@@ -30,8 +35,16 @@ public class FormMain extends JFrame {
     private JCheckBox cbDelete;
     private JProgressBar pbRecord;
 
+    PeriodFormatter timeFormatter = new PeriodFormatterBuilder()
+            .printZeroAlways()
+            .appendMinutes()
+            .appendSeparator(":")
+            .appendSeconds()
+            .toFormatter();
+
     private static final String conTemplate = "jdbc:jtds:sqlserver://%s:1433/%s;user=%s;password=%s";
     private final DbComparator comp = new DbComparator();
+    private Instant startTime;
 
     public FormMain() {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -82,7 +95,9 @@ public class FormMain extends JFrame {
                             lblCurrentRow.setText("");
                             btnGo.setEnabled(true);
                             pbMain.setValue(0);
-                            JOptionPane.showMessageDialog(FormMain.this, "Synchronization complete!");
+                            Duration delta = new Duration(startTime, Instant.now());
+                            String text = timeFormatter.print(delta.toPeriod());
+                            JOptionPane.showMessageDialog(FormMain.this, "Synchronized in " + text);
                         }
                     }
                 });
@@ -92,6 +107,7 @@ public class FormMain extends JFrame {
         btnGo.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                startTime = Instant.now();
                 btnGo.setEnabled(false);
                 new Thread(new Runnable() {
                     @Override
