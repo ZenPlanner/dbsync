@@ -32,20 +32,12 @@ public class DbComparator {
 
     }
 
-    private void saveConstraints(Map<String, List<String>> constraints) {
-        Properties props = loadProps();
-        StringBuilder sb = new StringBuilder();
-        for(String tableName : constraints.keySet()) {
-            List<String> conNames = constraints.get(tableName);
-            for(String conName : conNames) {
-                if(sb.length() > 0) {
-                    sb.append(",");
-                }
-                sb.append(tableName + "." + conName);
-            }
+    private void saveConstraints(String constraints) {
+        try(OutputStream out = new FileOutputStream( getSqlFile() )) {
+            out.write(constraints.getBytes("UTF-8"));
+        } catch (Exception ex) {
+            throw new RuntimeException("Error saving properties!", ex);
         }
-        props.put("Constraints", sb.toString());
-        saveProps(props);
     }
 
     public void unloadConstraints() {
@@ -89,12 +81,11 @@ public class DbComparator {
      *
      * @param scon The source connection
      * @param dcon The destination connection
-     * @param filterValue A value with which to filter partition data
      */
     public void synchronize(Connection scon, Connection dcon, Map<String,List<Object>> filters, List<String> ignoreTables, boolean delete) {
         try {
             // Make sure to save constraint status
-            Map<String, List<String>> constraints = getConstraints(dcon);
+            String constraints = Interrogator.getConstraints(dcon);
             saveConstraints(constraints);
 
             // Get the intersection of the tables
@@ -214,25 +205,6 @@ public class DbComparator {
             }
         }
 
-        return tables;
-    }
-
-    private static Map<String, List<String>> getConstraints(Connection con) throws Exception {
-        Map<String, List<String>> tables = new HashMap<>();
-        try (Statement stmt = con.createStatement()) {
-            String sql = Resources.toString(Resources.getResource("GetConstraints.sql"), Charsets.UTF_8);
-            try (ResultSet rs = stmt.executeQuery(sql)) {
-                while (rs.next()) {
-                    String tableName = rs.getString("table_name");
-                    if (!tables.containsKey(tableName)) {
-                        tables.put(tableName, new ArrayList<>());
-                    }
-                    List<String> constraints = tables.get(tableName);
-                    String constraintName = rs.getString("constraint_name");
-                    constraints.add(constraintName);
-                }
-            }
-        }
         return tables;
     }
 
@@ -376,7 +348,7 @@ public class DbComparator {
         return out;
     }
 
-    private File getPropFile() {
+    private File getWorkingDir() {
         File dir = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
         if(dir.isFile()) {
             // Running from a jar, e.g.: /opt/dbthingy/db-sync-1.0-SNAPSHOT-jar-with-dependencies.jar/dbsync.properties
@@ -386,8 +358,15 @@ public class DbComparator {
             // Running from a class directory (i.e. in an IDE or extracted jar)
             dir = dir.getParentFile();
         }
-        File f = new File(dir, "dbsync.properties");
-        return f;
+        return dir;
+    }
+
+    private File getSqlFile() {
+        return new File(getWorkingDir(), "restore.sql");
+    }
+
+    private File getPropFile() {
+        return new File(getWorkingDir(), "dbsync.properties");
     }
 
     public Properties loadProps() {
