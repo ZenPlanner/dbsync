@@ -36,6 +36,9 @@ public class Column {
     }
 
     public Comparable<?> getValue(ResultSet rs) throws Exception {
+        if("int".equals(dataType)) {
+            return rs.getInt(columnName);
+        }
         if("bigint".equals(dataType)) {
             return rs.getLong(columnName);
         }
