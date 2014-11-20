@@ -296,11 +296,11 @@ public class DbComparator {
                 modCount.addAndGet(changes.get(ChangeType.UPDATE).size());
 
                 // Sync
-                lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT), currentMod);
-                lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE), currentMod);
                 if(delete) {
                     lcd.deleteRows(dcon, changes.get(ChangeType.DELETE), currentMod);
                 }
+                lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT), currentMod);
+                lcd.updateRows(scon, dcon, changes.get(ChangeType.UPDATE), currentMod);
             } catch (Exception ex) {
                 throw new RuntimeException("Error selecting hashed rows: " + sql, ex);
             }
