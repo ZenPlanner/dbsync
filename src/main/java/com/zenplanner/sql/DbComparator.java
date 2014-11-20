@@ -289,11 +289,11 @@ public class DbComparator {
                 // Update stats
                 currentMod.set(0);
                 modCount.set(0);
-                modCount.addAndGet(changes.get(ChangeType.INSERT).size());
-                modCount.addAndGet(changes.get(ChangeType.UPDATE).size());
                 if(delete) {
                     modCount.addAndGet(changes.get(ChangeType.DELETE).size());
                 }
+                modCount.addAndGet(changes.get(ChangeType.INSERT).size());
+                modCount.addAndGet(changes.get(ChangeType.UPDATE).size());
 
                 // Sync
                 lcd.insertRows(scon, dcon, changes.get(ChangeType.INSERT), currentMod);
