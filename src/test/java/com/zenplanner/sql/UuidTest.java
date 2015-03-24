@@ -45,7 +45,7 @@ public class UuidTest extends TestCase {
         // Get 100 random UUIDs sorted by SQL
         List<UUID> sqlList = new ArrayList<>();
         Class.forName("net.sourceforge.jtds.jdbc.Driver");
-        String conStr = "jdbc:jtds:sqlserver://localhost:1433/ZenPlanner-Development;user=zenwebdev;password=Enterprise!";
+        String conStr = "jdbc:jtds:sqlserver://db1.office.zen.corp:1433/ZenPlanner-QA;user=zenwebqa;password=Enterprise!";
         try (Connection con = DriverManager.getConnection(conStr)) {
             try (Statement stmt = con.createStatement()) {
                 try (ResultSet rs = stmt.executeQuery(sql)) {
