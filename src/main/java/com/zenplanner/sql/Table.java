@@ -2,10 +2,7 @@ package com.zenplanner.sql;
 
 import com.google.common.base.Joiner;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -69,7 +66,7 @@ public class Table extends TreeMap<String, Column> {
         }
         String nameClause = Joiner.on(", ").join(colNames);
         String valueClause = Joiner.on(", ").join(valueNames);
-        String sql = String.format("insert into [%s] (%s\n) values (%s)", getName(), nameClause, valueClause);
+        String sql = String.format("INSERT INTO [%s] (%s\n) VALUES (%s)", getName(), nameClause, valueClause);
         return sql;
     }
 
@@ -90,7 +87,7 @@ public class Table extends TreeMap<String, Column> {
         }
         String updateClause = Joiner.on(",\n").join(updateCols);
         String whereClause = Joiner.on("\n\tand ").join(whereCols);
-        String sql = String.format("update [%s] set\n%s\nwhere %s", getName(), updateClause, whereClause);
+        String sql = String.format("UPDATE [%s] SET\n%s\nWHERE %s", getName(), updateClause, whereClause);
         return sql;
     }
 
@@ -108,13 +105,13 @@ public class Table extends TreeMap<String, Column> {
         }
         String hashNames = Joiner.on("+\n\t\t").join(colNames);
         String orderClause = Joiner.on(",").join(pk);
-        String selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + hashNames + "\n\t) as [Hash]";
-        String sql = String.format("select\n\t%s\nfrom [%s]\n", selectClause, getName());
+        String selectClause = orderClause + ",\n\tHASHBYTES('md5',\n\t\t" + hashNames + "\n\t) AS [Hash]";
+        String sql = String.format("SELECT\n\t%s\nFROM [%s]\n", selectClause, getName());
 
         // Filter
         sql = buildWhereClause(filters, sql);
 
-        sql += String.format("\norder by %s", orderClause);
+        sql += String.format("\nORDER BY %s", orderClause);
         return sql;
     }
 
@@ -123,22 +120,22 @@ public class Table extends TreeMap<String, Column> {
             StringBuilder sb = new StringBuilder();
             for(String key : filters.keySet()) {
                 if(sb.length() > 0) {
-                    sb.append("\n\t and ");
+                    sb.append("\n\t AND ");
                 }
                 List<Object> vals = filters.get(key);
                 List<String> terms = new ArrayList<>();
                 for(Object val : vals) {
                     terms.add("?");
                 }
-                sb.append("[" + key + "] in (" + Joiner.on(",").join(terms) + ")");
+                sb.append("[" + key + "] IN (" + Joiner.on(",").join(terms) + ")");
             }
-            sql += "where " + sb.toString();
+            sql += "WHERE " + sb.toString();
         }
         return sql;
     }
 
     public String writeCountQuery(Map<String,List<Object>> filters) {
-        String sql = String.format("select\n\tcount(*)\nfrom [%s]\n", getName());
+        String sql = String.format("SELECT\n\tCOUNT(*)\nFROM [%s]\n", getName());
         sql = buildWhereClause(filters, sql);
         return sql;
     }
@@ -188,12 +185,12 @@ public class Table extends TreeMap<String, Column> {
             }
             sb.append("[" + col.getColumnName() + "]");
         }
-        String sql = "select " + sb.toString();
+        String sql = "SELECT " + sb.toString();
         return createQuery(sql, con, keys, count);
     }
 
     public PreparedStatement createDeleteQuery(Connection con, Set<Key> keys, int count) {
-        return createQuery("delete", con, keys, count);
+        return createQuery("DELETE", con, keys, count);
     }
 
     // TODO: Break this monster out into separate methods for SQL and values
@@ -205,12 +202,12 @@ public class Table extends TreeMap<String, Column> {
         for (Key key : new HashSet<>(keys)) {
             keys.remove(key); // Remove as we go
             if (sb.length() > 0) {
-                sb.append("\tor ");
+                sb.append("\tOR ");
             }
             sb.append("(");
             for (int pkIdx = 0; pkIdx < pk.size(); pkIdx++) {
                 if (pkIdx > 0) {
-                    sb.append(" and ");
+                    sb.append(" AND ");
                 }
                 Column col = pk.get(pkIdx);
                 sb.append("[");
@@ -226,7 +223,7 @@ public class Table extends TreeMap<String, Column> {
                 break;
             }
         }
-        String sql = String.format("%s\nfrom [%s]\nwhere %s", prefix, getName(), sb.toString());
+        String sql = String.format("%s\nFROM [%s]\nWHERE %s", prefix, getName(), sb.toString());
         try {
             PreparedStatement stmt = con.prepareStatement(sql);
             for (int i = 0; i < parms.size(); i++) {
@@ -239,6 +236,7 @@ public class Table extends TreeMap<String, Column> {
             throw new RuntimeException("Error creating select query!", ex);
         }
     }
+
     public static Object javaToSql(Object val) {
         if(val == null) {
             return null;
@@ -255,15 +253,14 @@ public class Table extends TreeMap<String, Column> {
         throw new RuntimeException("Unknown type: " + val.getClass().getName());
     }
 
-
     public void deleteRows(Connection dcon, Set<Key> keys, AtomicInteger currentMod) throws Exception {
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
             System.out.println("Deleting " + count + " rows from " + getName());
-            try (PreparedStatement selectStmt = createDeleteQuery(dcon, keys, count)) {
-                selectStmt.execute();
+            try (PreparedStatement deleteStmt = createDeleteQuery(dcon, keys, count)) {
+                deleteStmt.execute();
             }
             rowIndex += count;
             currentMod.addAndGet(count);
@@ -286,17 +283,35 @@ public class Table extends TreeMap<String, Column> {
 
         int colCount = size();
         String sql = writeInsertQuery();
-        setIdentityInsert(dcon, true);
+        //setIdentityInsert(dcon, true);
+        setIdentityInsert(dcon, false);
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
         int size = keys.size();
+        List<String> pkValuesList = new ArrayList<String>();
         while (keys.size() > 0) {
             int count = Math.min(keys.size(), rowLimit);
             try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
+                    ResultSetMetaData resultSetMetaData = rs.getMetaData();
+
                     try (PreparedStatement insertStmt = dcon.prepareStatement(sql)) {
                         long queryStart = System.currentTimeMillis();
+                        pkValuesList.clear();
                         while (rs.next()) {
+                            StringBuffer pkValues = new StringBuffer();
+                            for (int i = 1; i <= colCount; i++) {
+                                for (Column pkColumn : pk) {
+                                    if ((resultSetMetaData.getColumnName(i)).equalsIgnoreCase(pkColumn.getColumnName())) {
+                                        if (pkValues.length() > 0) {
+                                            pkValues.append(", ");
+                                        }
+                                        pkValues.append(rs.getString(i));
+                                    }
+                                }
+                            }
+                            pkValuesList.add(pkValues.toString());
+
                             insertStmt.clearParameters();
                             for(int i = 1; i <= colCount; i++) {
                                 insertStmt.setObject(i, rs.getObject(i));
@@ -308,6 +323,19 @@ public class Table extends TreeMap<String, Column> {
                         System.out.println("Read " + count + " rows from " + getName() + " in " + (batchStart - queryStart) + "ms");
                         try {
                             insertStmt.executeBatch();
+                        } catch (BatchUpdateException e) {
+                            System.err.println("Batch Update Failed:  " + e.getMessage());
+                            int[] updateCounts = e.getUpdateCounts();
+                            for (int i = 0; i < updateCounts.length; i++) {
+                                String pkValuesForIndex = (pkValuesList != null ? pkValuesList.get(i) : "UNKNOWN");
+                                if (updateCounts[i] >= 0) {
+                                    System.err.println(i + ":  INSERT succeeded, rows = " + updateCounts[i] + " (" + pkValuesForIndex + ")");
+                                } else if (updateCounts[i] == Statement.SUCCESS_NO_INFO) {
+                                    System.err.println(i + ":  INSERT succeeded, rows unknown (" + pkValuesForIndex + ")");
+                                } else if (updateCounts[i] == Statement.EXECUTE_FAILED) {
+                                    System.err.println(i + ":  INSERT failed (" + pkValuesForIndex + ")");
+                                }
+                            }
                         } catch (Exception ex) {
                             throw new RuntimeException("Error inserting rows: " + sql, ex);
                         }
@@ -328,19 +356,50 @@ public class Table extends TreeMap<String, Column> {
         }
         List<Column> pk = getPk();
         int rowLimit = (int) Math.floor(maxKeys / pk.size());
+        int colCount = size();
+        List<String> pkValuesList = new ArrayList<String>();
         for (int rowIndex = 0; rowIndex < keys.size(); ) {
             int count = Math.min(keys.size() - rowIndex, rowLimit);
             System.out.println("Updating " + count + " rows in " + getName());
             try (PreparedStatement selectStmt = createSelectQuery(scon, keys, count)) {
                 try (ResultSet rs = selectStmt.executeQuery()) {
+                    ResultSetMetaData resultSetMetaData = rs.getMetaData();
+
                     String sql = writeUpdateQuery();
                     try (PreparedStatement updateStmt = dcon.prepareStatement(sql)) {
+                        pkValuesList.clear();
                         while (rs.next()) {
+                            StringBuffer pkValues = new StringBuffer();
+                            for (int i = 1; i <= colCount; i++) {
+                                for (Column pkColumn : pk) {
+                                    if ((resultSetMetaData.getColumnName(i)).equalsIgnoreCase(pkColumn.getColumnName())) {
+                                        if (pkValues.length() > 0) {
+                                            pkValues.append(", ");
+                                        }
+                                        pkValues.append(rs.getString(i));
+                                    }
+                                }
+                            }
+                            pkValuesList.add(pkValues.toString());
+
                             updateRow(updateStmt, rs);
                             currentMod.incrementAndGet();
                         }
                         try {
                             updateStmt.executeBatch();
+                        } catch (BatchUpdateException e) {
+                            System.err.println("Batch Update Failed:  " + e.getMessage());
+                            int[] updateCounts = e.getUpdateCounts();
+                            for (int i = 0; i < updateCounts.length; i++) {
+                                String pkValuesForIndex = (pkValuesList != null ? pkValuesList.get(i) : "UNKNOWN");
+                                if (updateCounts[i] >= 0) {
+                                    System.err.println(i + ":  UPDATE succeeded, rows = " + updateCounts[i] + " (" + pkValuesForIndex + ")");
+                                } else if (updateCounts[i] == Statement.SUCCESS_NO_INFO) {
+                                    System.err.println(i + ":  UPDATE succeeded, rows unknown (" + pkValuesForIndex + ")");
+                                } else if (updateCounts[i] == Statement.EXECUTE_FAILED) {
+                                    System.err.println(i + ":  UPDATE failed (" + pkValuesForIndex + ")");
+                                }
+                            }
                         } catch (Exception ex) {
                             throw new RuntimeException("Error updating rows!", ex);
                         }
