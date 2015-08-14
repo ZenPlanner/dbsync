@@ -250,6 +250,10 @@ public class Table extends TreeMap<String, Column> {
         if(val instanceof Long) {
             return val;
         }
+        if(val instanceof java.sql.Date)
+        {
+        	return val;
+        }
         throw new RuntimeException("Unknown type: " + val.getClass().getName());
     }
 

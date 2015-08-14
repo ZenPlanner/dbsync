@@ -53,6 +53,10 @@ public class Column {
             UUID uuid = UuidUtil.byteArrayToUuid(bytes);
             return uuid;
         }
+        if("date".equals(dataType))
+        {
+        	return rs.getDate(columnName);
+        }
         throw new RuntimeException("Type not recognized: " + dataType);
     }
 
