@@ -118,24 +118,6 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
-            <plugin>
-               <groupId>org.codehaus.mojo</groupId>
-               <artifactId>exec-maven-plugin</artifactId>
-               <version>1.1.1</version>
-               <executions>
-                  <execution>
-                     <phase>compile</phase>
-                     <goals>
-                         <goal>package</goal>
-                     </goals>
-                     <configuration>
-                        <mainClass>com.zenplanner.sql.App</mainClass>
-                        <arguments>
-                        </arguments>
-                     </configuration>
-                  </execution>
-               </executions>
-            </plugin>
         </plugins>
     </build>
 </project>
