@@ -21,3 +21,5 @@ WHERE     tab.[type] = 'U'
   AND     col.[is_identity] = 0
 ORDER BY  [table_name],
           [column_name]
+
+OPTION (QUERYTRACEON 9481)
