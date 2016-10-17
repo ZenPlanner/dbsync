@@ -6,6 +6,7 @@ import com.google.common.io.Resources;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -89,7 +90,7 @@ public class DbComparator {
      *
      * @param scon The source connection
      * @param dcon The destination connection
-     * @param filterValue A value with which to filter partition data
+     * @param filters A value with which to filter partition data
      */
     public void synchronize(Connection scon, Connection dcon, Map<String,List<Object>> filters, List<String> ignoreTables, boolean delete) {
         try {
@@ -188,22 +189,24 @@ public class DbComparator {
      */
     private static Map<String, Table> getTables(Connection con) throws Exception {
         Map<String, Table> tables = new HashMap<>();
-        try (Statement stmt = con.createStatement()) {
-            String sql = Resources.toString(Resources.getResource("GetTables.sql"), Charsets.UTF_8);
-            try (ResultSet rs = stmt.executeQuery(sql)) {
-                while (rs.next()) {
-                    String tableName = rs.getString("table_name");
-                    if (!tables.containsKey(tableName)) {
-                        tables.put(tableName, new Table(tableName));
-                    }
-                    Table table = tables.get(tableName);
+        try (CallableStatement stmt = con.prepareCall("{ call sp_DbSyncGetObjects }")) {
+            boolean hadResults = stmt.execute();
+            if (hadResults) {
+                try (ResultSet rs = stmt.getResultSet()) {
+                    while (rs.next()) {
+                        String tableName = rs.getString("table_name");
+                        if (!tables.containsKey(tableName)) {
+                            tables.put(tableName, new Table(tableName));
+                        }
+                        Table table = tables.get(tableName);
 
-                    Column col = new Column();
-                    String colName = rs.getString("column_name").toLowerCase();
-                    col.setColumnName(colName);
-                    col.setDataType(rs.getString("data_type"));
-                    col.setPrimaryKey(rs.getBoolean("primary_key"));
-                    table.put(colName, col);
+                        Column col = new Column();
+                        String colName = rs.getString("column_name").toLowerCase();
+                        col.setColumnName(colName);
+                        col.setDataType(rs.getString("data_type"));
+                        col.setPrimaryKey(rs.getBoolean("primary_key"));
+                        table.put(colName, col);
+                    }
                 }
             }
         }
