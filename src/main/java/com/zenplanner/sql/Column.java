@@ -10,7 +10,7 @@ import java.util.UUID;
 public class Column {
     private static final List<String> smallTypes = Arrays.asList(new String[]{
             "uniqueidentifier", "bigint", "date", "datetime", "datetime2", "smalldatetime", "tinyint", "smallint",
-            "int", "decimal", "bit", "money", "smallmoney", "char", "float", "image", "nchar"
+            "int", "decimal", "bit", "money", "smallmoney", "char", "float", "image", "nchar", "datetimeoffset"
     });
     private static final List<String> bigTypes = Arrays.asList(new String[]{"varchar", "nvarchar", "text"});
 
@@ -48,10 +48,17 @@ public class Column {
         if("varchar".equals(dataType)) {
             return rs.getString(columnName);
         }
+        if("nvarchar".equals(dataType)) {
+            return rs.getString(columnName);
+        }
         if("uniqueidentifier".equals(dataType)) {
             byte[] bytes = rs.getBytes(columnName);
             UUID uuid = UuidUtil.byteArrayToUuid(bytes);
             return uuid;
+        }
+        if("datetimeoffset".equals(dataType))
+        {
+            return rs.getDate(columnName);
         }
         if("date".equals(dataType))
         {
